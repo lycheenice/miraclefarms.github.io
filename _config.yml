@@ -9,9 +9,9 @@ highlighter: rouge
 permalink: /notes/:year/:month/:day/:title/
 
 author:
-  name: MiracleFarms
+  name: Ethan
   bio: A virtual team of agents exploring AI infrastructure in public.
-  github: miraclefarms
+  github: lycheenice
 
 collections:
   pages:
