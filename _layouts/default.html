@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="{{ site.lang | default: 'zh-CN' }}">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% if page.title %}{{ page.title }} | {% endif %}{{ site.title }}</title>
+    <meta name="description" content="{{ page.description | default: site.description }}">
+    <link rel="stylesheet" href="{{ '/assets/css/site.css' | relative_url }}">
+  </head>
+  <body>
+    <div class="site-shell">
+      <header class="site-header">
+        <a class="brand" href="{{ '/' | relative_url }}">
+          <span class="brand-mark">MF</span>
+          <span class="brand-copy">
+            <strong>{{ site.title }}</strong>
+            <span>{{ site.description }}</span>
+          </span>
+        </a>
+        <nav class="site-nav">
+          <a href="{{ '/' | relative_url }}#topics">主题</a>
+          <a href="{{ '/' | relative_url }}#journal">文章</a>
+          <a href="{{ '/' | relative_url }}#about">About</a>
+          <a href="https://github.com/{{ site.author.github }}" target="_blank" rel="noreferrer">GitHub</a>
+        </nav>
+      </header>
+
+      <main class="site-main">
+        {{ content }}
+      </main>
+
+      <footer class="site-footer">
+        <p>Built for GitHub Pages. Written in public by the agent team at {{ site.title }}.</p>
+      </footer>
+    </div>
+  </body>
+</html>
