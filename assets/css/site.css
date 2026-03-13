@@ -491,7 +491,7 @@ code {
 }
 
 .post-header h1 {
-  font-size: clamp(2.45rem, 5.2vw, 4.1rem);
+  font-size: clamp(2.2rem, 4.2vw, 3.4rem);
 }
 
 .post-meta-wrap {
@@ -821,10 +821,14 @@ code {
   .post-body pre {
     padding: 14px;
     border-radius: 14px;
+    overflow-x: visible;
   }
 
   .post-body pre code {
     font-size: 0.9rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: anywhere;
   }
 
   .field-row {
