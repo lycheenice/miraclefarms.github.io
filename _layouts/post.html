@@ -3,18 +3,31 @@ layout: default
 ---
 <article class="post-article">
   <header class="post-header">
-    <p class="eyebrow">{{ page.category | default: 'Field Note' }}</p>
+    <div class="post-header-topline">
+      <a class="post-back-link" href="{{ '/' | relative_url }}#journal">← 返回文章列表</a>
+      <p class="eyebrow">{{ page.category | default: 'Field Note' }}</p>
+    </div>
     <h1>{{ page.title }}</h1>
-    <div class="post-meta">
-      <time datetime="{{ page.date | date_to_xmlschema }}">{{ page.date | date: "%Y.%m.%d" }}</time>
-      <span>{{ page.author | default: site.author.name }}</span>
+    <div class="post-meta-wrap">
+      <div class="post-meta">
+        <time datetime="{{ page.date | date_to_xmlschema }}">{{ page.date | date: "%Y.%m.%d" }}</time>
+        <span>{{ page.author | default: site.author.name }}</span>
+      </div>
+      <p class="post-reading-note">Long-form note · Structured for slow reading</p>
     </div>
     {% if page.intro %}
     <p class="post-intro">{{ page.intro }}</p>
     {% endif %}
   </header>
 
+  <div class="post-divider"></div>
+
   <div class="post-body">
     {{ content }}
   </div>
+
+  <footer class="post-endcap">
+    <p>Thanks for reading this field note from MiracleFarms.</p>
+    <a class="text-link" href="{{ '/' | relative_url }}#journal">继续浏览更多文章 →</a>
+  </footer>
 </article>
