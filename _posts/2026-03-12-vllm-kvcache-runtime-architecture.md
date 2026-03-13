@@ -157,7 +157,29 @@ request
 
 > **在当前 vLLM 主线中，底层本体是 layer 级分页化 GPU KV tensor；`KVCacheBlock` 管理物理页元数据；`KVCacheBlocks` 提供 request 级 grouped view；`block_table + slot_mapping` 则把这种上层视图翻译成 attention backend 可执行的物理访问。**
 
-## 九、Prefill 与 Decode 阶段里，block_table 和 slot_mapping 分别怎么工作
+## 九、从顶层管理到显存分配：KV cache 初始化、NIXL 注册与 zero-copy 边界
+
+如果只看 `torch.zeros(...)` 那一行，很容易以为 vLLM 的 KV cache 初始化只是一个设备内分配动作。但把调用链往上追，会发现它实际上跨越了 **Engine、Worker、Runner 和 KV connector** 四层。这条链之所以重要，不只是因为它解释了“KV cache 什么时候分配”，还因为它同时揭示了：**为什么 vLLM 要做 engine / worker / runner 分层，NIXL 又是在哪个时间点接入这条链，并实现近似 zero-copy 的 KV 传输路径。**
+
+从当前主线源码看，最上层入口在 `EngineCore.__init__()`。engine 启动后，会先进入 `_initialize_kv_caches()`：读取模型的 `kv_cache_specs`，profiling 可用显存，生成各 worker 使用的 `kv_cache_configs`，再生成 scheduler 看到的 `scheduler_kv_cache_config`。这一步的本质不是“分配显存”，而是**建立全局 KV 资源模型**：系统总共允许多少 blocks、按什么 group 组织、scheduler 后续该如何理解这些资源。也正因如此，scheduler 必须等这一步完成后才能创建，因为它要消费的不是抽象的“将来某处会有 KV cache”，而是一份已经定型的 KV 资源配置。
+
+随后，engine 通过 executor 把 `kv_cache_configs` 下发给各 worker。到了 `WorkerBase.initialize_from_config()`，系统会按 `global_rank` 选出当前 worker 对应的那份配置，再进入 `GPUWorker.initialize_from_config()`。这一层的职责不是直接分配 tensor，而是完成**本地执行端的准备工作**。最关键的一步就是：在真正初始化 KV cache 之前，先调用 `ensure_kv_transfer_initialized(self.vllm_config, kv_cache_config)`。如果当前实例启用了 KV transfer，并且底层 connector 选的是 NIXL，那么这里会通过 `KVConnectorFactory.create_connector(...)` 创建 worker 侧的 NIXL connector，并最终进入 `NixlConnectorWorker.__init__()`，在其中构造 `self.nixl_wrapper = NixlWrapper(...)`。换句话说，**NIXL agent / wrapper 的建立发生在 worker 边界，而且先于 KV tensor 分配。**
+
+真正的显存分配发生在 runner 层。`GPUWorker.initialize_from_config()` 接着会调用 `self.model_runner.initialize_kv_cache(kv_cache_config)`。在 `GPUModelRunner.initialize_kv_cache()` 中，runner 先构造 `BlockTables`，初始化 attention backend 和 metadata builder，然后进入 `init_kv_cache(...)`。再往下，`init_kv_cache()` 会调用 `_allocate_kv_cache(kv_cache_config, device)`，而 `_allocate_kv_cache()` 里的 `torch.zeros(kv_cache_tensor.size, dtype=torch.int8, device=device)`，才是原始 KV memory 的真实分配点。紧接着，`_reshape_kv_cache()` 又会根据各层的 `KVCacheSpec` 和 backend 的 `get_kv_cache_shape()`，把这些原始 byte buffer 重新解释成 layer 级、按 page/block 布局组织的 KV tensors。也就是说，**Engine 决定“怎么配”，Worker 负责“在哪个执行端准备好”，Runner 才真正把配置落成设备内的 KV tensor。**
+
+NIXL 对 KV cache 的“注册”则发生在这个显存分配之后。`GPUModelRunner.initialize_kv_cache()` 在拿到 `kv_caches_dict` 后，会调用 `get_kv_connector(self.vllm_config, kv_caches_dict)`；如果当前进程已经有可用的 KV transfer group，就会构造 `ActiveKVConnector`，并立即执行 `self.kv_connector.register_kv_caches(kv_caches_dict)`。对于 NIXL，这一步会进入 `NixlConnectorWorker.register_kv_caches(...)`：遍历每个 layer 的 cache tensor，收集 `cache.data_ptr()`、tensor byte size、device id 等底层信息，调用 `self.nixl_wrapper.get_reg_descs(...)` 生成 memory descriptors，再通过 `self.nixl_wrapper.register_memory(...)` 把这些真实 KV tensors 注册给 NIXL。只有在这一步之后，NIXL 才真正获得了“这些 KV cache 位于哪些 device address、每个 region 有多大、后续该如何准备 xfer descriptor”的能力。
+
+这也解释了 vLLM 在这里为什么可以做到接近 **zero-copy** 的传输路径。至少从当前 Python 调用链和 NIXL connector 的注册逻辑看，NIXL 不是把 KV block 先序列化成一块中间 Python buffer 再转发，而是直接围绕已分配好的 KV tensor 做 descriptor 注册：`register_kv_caches()` 里拿的是 `cache.data_ptr()` 和 tensor 大小，后续 `register_local_xfer_handler()`、`add_remote_agent()`、`prep_xfer_dlist()` 也都是围绕这些已注册内存区域组织块级传输描述。换句话说，**vLLM 当前 NIXL 路径的关键优势，不在于“少了一次函数调用”，而在于它把 KV cache 作为已注册的设备内存区域暴露给传输层，后续 block 读写直接围绕这些 region 展开，而不是先额外打包成独立复制缓冲区。**
+
+需要强调的是，这里说的 zero-copy 更准确地应理解为：**在 vLLM 当前 NIXL connector 设计里，KV 传输建立在已注册的原始 KV memory region 之上，而不是建立在额外 staging buffer 之上。** 是否做到硬件层面绝对零拷贝，还会受后端、host buffer、memory type、平台能力等条件影响；但从 vLLM 的 Python 代码路径看，NIXL 设计追求的确实是“直接围绕原始 KV region 进行 descriptor 化和传输准备”。
+
+那为什么不能直接用 NCCL 做同样的事？更准确地说，在 **vLLM 当前这类 KV connector 设计** 里，NCCL 并不提供一套等价的“已注册任意 KV 内存区域 + 远端 agent metadata + 按 block 准备传输描述符”的抽象。NIXL connector 这条链路依赖的不是单纯的 GPU 间数据搬运，而是：先用 `register_memory()` 注册本地 KV region，再通过 handshake 交换 agent metadata 和 base addresses，然后为远端 block 准备 xfer descriptors，最后按 request/block 粒度发起异步加载。NCCL 非常擅长做 rank 间 collective / point-to-point tensor 通信，但它在 vLLM 当前 Python 侧并没有被组织成这种“以注册内存区域为中心的 KV block connector”模型。因此，更稳妥的表述不是“NCCL 绝对做不到 zero-copy”，而是：**在 vLLM 当前主线里，NCCL 并没有提供与 NIXL connector 等价的 memory registration + remote descriptor + block-level KV pull 语义，所以这条 zero-copy 风格的 KV transfer 路径目前是围绕 NIXL 建起来的。**
+
+如果把这整条链压缩成一句话，可以概括为：
+
+> **Engine 先决定全局 KV 资源模型，Worker 先把 NIXL 这类 transfer connector 建起来，Runner 再真正分配并 reshape KV tensors，随后 connector 才把这些已分配的 KV memory region 注册出去。正是这种“先配置、再建环境、再分配 tensor、最后注册 region”的分层顺序，使 vLLM 能把 KV cache 同时纳入调度系统、显存布局和远端传输路径。**
+
+## 十、Prefill 与 Decode 阶段里，block_table 和 slot_mapping 分别怎么工作
 
 把 KV 存储本体和 request 视图区分清楚之后，下一个自然问题就是：这些映射结构究竟在执行时怎么被用到？从当前主线实现看，`block_table` 和 `slot_mapping` 虽然总是成对出现，但它们在 prefill 与 decode 阶段承担的角色并不完全相同。前者更偏向“描述一个 request 目前持有哪些物理 blocks”，后者则更接近“本轮参与计算的这些 token 应该写到哪些物理位置”。
 
@@ -175,7 +197,7 @@ request
 
 这也是 vLLM 当前分页化 KV 抽象真正成立的关键。系统并不是把“历史 KV 存储”和“新 token 写入”拆成两套完全不同的数据结构，而是让二者都围绕同一套物理 page/block 布局组织：`block_table` 描述逻辑上下文到物理页的映射，`slot_mapping` 描述当前批次 token 到物理写入位置的映射。一个偏读路径，一个偏写路径，但最终都落在同一个底层 KV tensor 上。
 
-## 十、Prefix cache 命中是如何查找的：为什么它是 block 级复用，而不是 token 级复用
+## 十一、Prefix cache 命中是如何查找的：为什么它是 block 级复用，而不是 token 级复用
 
 到这里，其实还剩下一个很关键的问题：当我们说一个 request “命中了 prefix cache” 时，vLLM 当前主线到底在查什么？如果把这一步想象成“拿 prompt 字符串做最长前缀匹配”，就会低估它的工程约束。实际实现里，prefix cache 查找不是 token 级任意命中，而是围绕 **block hash、block size 对齐以及 attention-type 特定规则** 展开的。
 
@@ -189,7 +211,7 @@ request
 
 从文章的角度，这一实现细节值得专门强调，因为它能帮读者避免一个常见误解：vLLM 的 prefix cache 不是“对任意历史 token 做细粒度重用”，而是**对已经稳定成 full block 的前缀页做可验证、可管理、可共享的复用**。换句话说，当前主线真正缓存的不是“前缀本身”，而是“前缀对应的完整物理页及其 hash 身份”。这也解释了为什么前面一再强调 block/page 才是 vLLM KV 管理的基本资源单位——因为连 prefix cache 命中这件事，本质上也是围绕 block 在运转。
 
-## 十一、Prefix caching 的真正意义：它改变了 block 的生命周期语义
+## 十二、Prefix caching 的真正意义：它改变了 block 的生命周期语义
 
 在很多介绍里，prefix caching 被讲成一种“提升命中率、减少 prefill 重算”的优化功能。这种说法当然没有错，但如果放在当前主线的上下文中，它其实太浅了。更准确地说，**prefix caching 的意义不只是少算几段 prompt，而是让一部分 KV blocks 从请求私有状态变成了可共享的系统资源。**
 
@@ -201,7 +223,7 @@ request
 
 因此，真正值得强调的不是“vLLM 支持 prefix caching”，而是：**当前 vLLM 主线通过 prefix caching 引入了共享 block 生命周期，并开始把这层共享关系继续传导到 batch 级执行优化。** 一旦从这个视角出发，ref count、common prefix blocks、cache commit 时机等设计就不再是零散技巧，而会显得内在连贯。
 
-## 十二、当前主线的边界：本地 block runtime 已经成型，但不是终点
+## 十三、当前主线的边界：本地 block runtime 已经成型，但不是终点
 
 尽管当前 vLLM 主线已经把单机本地的 KV cache 管理做成了一套系统级 runtime，但这并不意味着问题已经被彻底解决。更准确的说法是：**vLLM 已经把“本地显存中的 block 级 KV 管理”系统化了，但更复杂的跨介质和远端管理仍在继续演进。**
 
@@ -264,20 +286,48 @@ GitHub：[attention/backend.py](https://github.com/vllm-project/vllm/blob/48e376
 GitHub：[flash_attn.py](https://github.com/vllm-project/vllm/blob/48e376a007173910330a8c83f53474b21e4279c0/vllm/v1/attention/backends/flash_attn.py)  
 重点关注 `common_prefix_len`、`prefix_kv_lens`、`prefix_scheduler_metadata` 和 `use_cascade = common_prefix_len > 0` 等逻辑。
 
+[9] `engine/core.py` 展示 KV cache 初始化发生在 engine 启动阶段、scheduler 创建之前：相对路径 `vllm/v1/engine/core.py`  
+GitHub：[engine/core.py](https://github.com/vllm-project/vllm/blob/48e376a007173910330a8c83f53474b21e4279c0/vllm/v1/engine/core.py)  
+重点关注 `EngineCore.__init__()` 与 `_initialize_kv_caches()`，其中 engine 会先生成 `kv_cache_configs`，再调用 `model_executor.initialize_from_config(...)` 初始化各 worker 的 KV cache。
+
+[10] `gpu_worker.py` 展示 worker 侧先初始化 KV transfer，再初始化 KV cache：相对路径 `vllm/v1/worker/gpu_worker.py`  
+GitHub：[gpu_worker.py](https://github.com/vllm-project/vllm/blob/48e376a007173910330a8c83f53474b21e4279c0/vllm/v1/worker/gpu_worker.py)  
+重点关注 `initialize_from_config()`，其中先调用 `ensure_kv_transfer_initialized(...)`，再进入 `model_runner.initialize_kv_cache(...)`。
+
+[11] `model_runner.py` 展示 runner 侧如何把配置落成 BlockTables、attention backend 和 KV tensors：相对路径 `vllm/v1/worker/gpu/model_runner.py`  
+GitHub：[model_runner.py](https://github.com/vllm-project/vllm/blob/48e376a007173910330a8c83f53474b21e4279c0/vllm/v1/worker/gpu/model_runner.py)  
+重点关注 `initialize_kv_cache()`，其中依次创建 `BlockTables`、初始化 attention backend、调用 `init_kv_cache(...)`，最后通过 `get_kv_connector(...)` 把已分配好的 KV tensors 暴露给 connector。
+
+[12] `attn_utils.py` 展示原始 KV memory 的真实分配与 reshape：相对路径 `vllm/v1/worker/gpu/attn_utils.py`  
+GitHub：[attn_utils.py](https://github.com/vllm-project/vllm/blob/48e376a007173910330a8c83f53474b21e4279c0/vllm/v1/worker/gpu/attn_utils.py)  
+重点关注 `_allocate_kv_cache()`、`_reshape_kv_cache()` 和 `init_kv_cache()`；其中 `_allocate_kv_cache()` 里的 `torch.zeros(...)` 是原始 KV tensor 的真实分配点。
+
+[13] `kv_transfer_state.py` 展示 KV transfer connector 的初始化入口：相对路径 `vllm/distributed/kv_transfer/kv_transfer_state.py`  
+GitHub：[kv_transfer_state.py](https://github.com/vllm-project/vllm/blob/48e376a007173910330a8c83f53474b21e4279c0/vllm/distributed/kv_transfer/kv_transfer_state.py)  
+重点关注 `ensure_kv_transfer_initialized()`，它通过 `KVConnectorFactory.create_connector(...)` 创建 worker 侧的 transfer connector。
+
+[14] `gpu/kv_connector.py` 展示已分配 KV tensors 如何被注册给 connector：相对路径 `vllm/v1/worker/gpu/kv_connector.py`  
+GitHub：[gpu/kv_connector.py](https://github.com/vllm-project/vllm/blob/48e376a007173910330a8c83f53474b21e4279c0/vllm/v1/worker/gpu/kv_connector.py)  
+重点关注 `ActiveKVConnector.__init__()`，其中直接调用 `self.kv_connector.register_kv_caches(kv_caches_dict)`。
+
+[15] `nixl_connector.py` 展示 NIXL worker 初始化与 memory registration：相对路径 `vllm/distributed/kv_transfer/kv_connector/v1/nixl_connector.py`  
+GitHub：[nixl_connector.py](https://github.com/vllm-project/vllm/blob/48e376a007173910330a8c83f53474b21e4279c0/vllm/distributed/kv_transfer/kv_connector/v1/nixl_connector.py)  
+重点关注 `NixlConnectorWorker.__init__()`、`register_kv_caches()`、`register_local_xfer_handler()` 和 `add_remote_agent()`；其中 `register_kv_caches()` 通过 `cache.data_ptr()`、`get_reg_descs()` 与 `register_memory()` 把真实 KV memory region 注册给 NIXL。
+
 ### 相关 PR
 
-[9] `Use block table apis for capture inputs`：PR `#35671`  
+[16] `Use block table apis for capture inputs`：PR `#35671`  
 链接：[PR #35671](https://github.com/vllm-project/vllm/pull/35671)  
 说明 block table API 仍是当前执行主链的一部分，并在演进中。
 
-[10] `Avoid prefix cache hit in the same schedule step for mamba layers`：PR `#29387`  
+[17] `Avoid prefix cache hit in the same schedule step for mamba layers`：PR `#29387`  
 链接：[PR #29387](https://github.com/vllm-project/vllm/pull/29387)  
 说明 prefix caching 与 schedule step 的交互语义并非静态设计点，仍在持续修正。
 
-[11] `Fix CPU memory leak from Request reference cycle in prefix caching`：PR `#34183`  
+[18] `Fix CPU memory leak from Request reference cycle in prefix caching`：PR `#34183`  
 链接：[PR #34183](https://github.com/vllm-project/vllm/pull/34183)  
 说明 prefix caching 不只是性能特性，也涉及 request 生命周期与引用管理复杂度。
 
-[12] `Support multiple KV cache groups in Hybrid KV Coordinator`：PR `#31707`  
+[19] `Support multiple KV cache groups in Hybrid KV Coordinator`：PR `#31707`  
 链接：[PR #31707](https://github.com/vllm-project/vllm/pull/31707)  
 可用来支撑“当前主线已是多组 KV 协调架构”的判断。
