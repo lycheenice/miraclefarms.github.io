@@ -331,3 +331,17 @@ GitHub：[nixl_connector.py](https://github.com/vllm-project/vllm/blob/48e376a00
 [19] `Support multiple KV cache groups in Hybrid KV Coordinator`：PR `#31707`  
 链接：[PR #31707](https://github.com/vllm-project/vllm/pull/31707)  
 可用来支撑“当前主线已是多组 KV 协调架构”的判断。
+
+### 官方博客 / 原文延伸阅读
+
+[20] `Inside vLLM: Anatomy of a High-Throughput LLM Inference System`：vLLM 官方架构总览文  
+链接：[Anatomy of vLLM](https://vllm.ai/blog/anatomy-of-vllm)  
+这篇文章从整体系统角度覆盖 Engine、Scheduler、Prefix Caching、Disaggregated P/D 等主题，适合作为理解 vLLM 全局结构的官方背景材料；但它并不是一篇专门围绕 KV cache 内部运行时与显存布局的源码级剖析。
+
+[21] `vLLM Router: A High-Performance and Prefill/Decode Aware Load Balancer for Large-scale Serving`：vLLM 官方对状态感知路由与 P/D 解耦的说明  
+链接：[vLLM Router](https://vllm.ai/blog/vllm-router-release)  
+文中明确指出大规模 serving 需要感知 KV cache 这一状态，并提到 router 支持 `NIXL` 与 `NCCL-based (with ZMQ discovery)` 的 disaggregation backends。本文对 NIXL / NCCL 的讨论更聚焦于 **当前 vLLM Python connector 路径中 memory registration 与 block-level KV transfer 的语义差异**，与 router 文中的部署层描述并不冲突。
+
+[22] `Inside vLLM’s New KV Offloading Connector: Smarter Memory Transfer for Maximizing Inference Throughput`：vLLM 官方对 KV offloading connector 的原文说明  
+链接：[KV Offloading Connector](https://vllm.ai/blog/kv-offloading-connector)  
+这篇官方博客重点讨论 CPU KV offloading、异步 connector API、`cudaMemcpyAsync` / DMA 路径与吞吐优化，是理解“KV data 如何通过 connector API 在不同介质间搬运”的第一手材料。本文对 NIXL register / zero-copy 的讨论则进一步补充了另一条以已注册 device memory region 为中心的 KV transfer 路径。
