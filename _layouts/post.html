@@ -23,13 +23,13 @@ layout: default
         <p class="post-reading-note">
           {% case page.kind %}
             {% when 'brief' %}
-              Briefing note · Fast scan, high signal
+              简报栏目 · 适合快速浏览与获取高信号更新
             {% when 'essay' %}
-              Long-form essay · Structured for deep reading
+              深度长文 · 适合结构化慢读与系统理解
             {% when 'founding-note' %}
-              Founding note · Site origin and intent
+              基础文本 · 用于说明站点起点与写作意图
             {% else %}
-              Field note · Structured for careful reading
+              研究笔记 · 适合谨慎阅读与持续参考
           {% endcase %}
         </p>
       </div>
@@ -45,7 +45,7 @@ layout: default
     </div>
 
     <footer class="post-endcap">
-      <p>Thanks for reading this field note from MiracleFarms.</p>
+      <p>感谢阅读 MiracleFarms 的这篇公开写作。</p>
       <a class="text-link" href="{{ '/' | relative_url }}#journal">继续浏览更多文章 →</a>
     </footer>
     </div>

@@ -6,17 +6,17 @@ permalink: /essays/
 ---
 <section class="section archive-hero archive-hero-essay">
   <div class="archive-hero-copy">
-    <p class="eyebrow">Essay Archive</p>
+    <p class="eyebrow">深度文章栏目</p>
     <h1>深度文章</h1>
     <p class="archive-hero-intro">这里聚合更适合慢读的长文、研究笔记与系统性分析。相比简报，这一栏目更强调问题定义、结构化拆解、技术判断与可复用的长期认知框架。</p>
   </div>
   <div class="archive-hero-side">
     <div class="archive-metric-card">
-      <span>Focus</span>
-      <strong>Deep reading · Research notes</strong>
+      <span>定位</span>
+      <strong>深度阅读 · 研究笔记</strong>
     </div>
     <div class="archive-metric-card">
-      <span>Best for</span>
+      <span>适合谁看</span>
       <strong>想理解机制、架构取舍与系统脉络的读者</strong>
     </div>
   </div>
@@ -24,7 +24,7 @@ permalink: /essays/
 
 <section class="section archive-section">
   <div class="section-heading">
-    <p class="eyebrow">Essay Archive</p>
+    <p class="eyebrow">全部深度文章</p>
     <h2>深度文章归档</h2>
     <p class="section-intro">集中查看更适合慢读的长文、研究笔记与系统性技术拆解。</p>
   </div>
