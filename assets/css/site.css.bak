@@ -1,23 +1,19 @@
 :root {
-  /* 农场感调色板 - 更温暖、有机 */
-  --bg: #f5f0e6;
-  --bg-soft: #faf6ed;
-  --surface: #f0ebe0;
-  --surface-strong: #fdfbf5;
-  --surface-muted: #e8e0d2;
-  --line: rgba(60, 50, 35, 0.15);
-  --line-strong: rgba(60, 50, 35, 0.25);
-  --text: #2a2418;
-  --muted: #6b5f4f;
-  --muted-soft: #8a7d6b;
-  /* 农场绿 + 泥土棕 */
-  --accent: #4a6741;
-  --accent-strong: #354d2e;
-  --accent-soft: #e8efe3;
-  --signal: #a67c52;
-  --shadow-soft: 0 8px 24px rgba(42, 36, 24, 0.08);
-  /* 手写字体 */
-  --font-hand: "Caveat", "Ma Shan Zheng", "Zhi Mang Xing", cursive;
+  --bg: #f6f2e8;
+  --bg-soft: #fbf8f2;
+  --surface: #f8f4ec;
+  --surface-strong: #fffdf8;
+  --surface-muted: #f2ebde;
+  --line: rgba(44, 56, 52, 0.12);
+  --line-strong: rgba(31, 46, 40, 0.18);
+  --text: #172129;
+  --muted: #5f6b66;
+  --muted-soft: #76817b;
+  --accent: #264b42;
+  --accent-strong: #18342d;
+  --accent-soft: #e1ebe5;
+  --signal: #95623c;
+  --shadow-soft: 0 10px 30px rgba(30, 42, 37, 0.05);
 }
 
 * {
@@ -31,14 +27,12 @@ html {
 body {
   margin: 0;
   color: var(--text);
-  /* 纸张纹理 + 有机渐变 */
   background:
-    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E"),
-    radial-gradient(ellipse at 20% 0%, rgba(166, 124, 82, 0.08) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 100%, rgba(74, 103, 65, 0.1) 0%, transparent 50%),
-    linear-gradient(180deg, #faf6ed 0%, var(--bg) 100%);
+    radial-gradient(circle at top left, rgba(149, 98, 60, 0.05), transparent 28%),
+    radial-gradient(circle at top right, rgba(38, 75, 66, 0.07), transparent 24%),
+    linear-gradient(180deg, #fcfaf5 0%, var(--bg) 100%);
   font-family: "Avenir Next", "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", sans-serif;
-  line-height: 1.72;
+  line-height: 1.68;
 }
 
 a {
@@ -144,8 +138,8 @@ code {
 .section,
 .post-article {
   border: 1px solid var(--line);
-  border-radius: 16px;
-  background: rgba(255, 252, 247, 0.7);
+  border-radius: 24px;
+  background: rgba(255, 252, 247, 0.86);
   box-shadow: var(--shadow-soft);
 }
 
@@ -154,40 +148,6 @@ code {
   grid-template-columns: 1.2fr 0.8fr;
   gap: 28px;
   padding: 46px;
-  position: relative;
-  overflow: hidden;
-}
-
-/* 农场感装饰角标 */
-.farm-decor {
-  position: absolute;
-  width: 120px;
-  height: 120px;
-  opacity: 0.06;
-  pointer-events: none;
-}
-
-.farm-decor-tl {
-  top: -20px;
-  left: -20px;
-  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M10 90 Q30 70 50 80 T90 60' stroke='%234a6741' fill='none' stroke-width='2'/%3E%3Cpath d='M5 70 Q25 50 45 60 T85 40' stroke='%234a6741' fill='none' stroke-width='1.5'/%3E%3Ccircle cx='20' cy='30' r='3' fill='%23a67c52'/%3E%3Ccircle cx='60' cy='25' r='2' fill='%23a67c52'/%3E%3C/svg%3E") center/contain no-repeat;
-}
-
-.farm-decor-br {
-  bottom: -30px;
-  right: -30px;
-  width: 180px;
-  height: 180px;
-  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M10 10 Q30 30 50 20 T90 40' stroke='%23a67c52' fill='none' stroke-width='2'/%3E%3Cpath d='M20 20 Q40 40 60 30 T90 50' stroke='%23a67c52' fill='none' stroke-width='1.5'/%3E%3C/svg%3E") center/contain no-repeat;
-  transform: rotate(180deg);
-}
-
-.hero-signature {
-  font-family: var(--font-hand);
-  font-size: 1.4rem;
-  color: var(--muted);
-  margin-top: 20px;
-  opacity: 0.85;
 }
 
 .eyebrow {
@@ -246,35 +206,29 @@ code {
   align-items: center;
   justify-content: center;
   min-height: 44px;
-  padding: 0 20px;
-  /* 更圆润的有机感 */
-  border-radius: 8px;
+  padding: 0 18px;
+  border-radius: 999px;
   border: 1px solid transparent;
   font-weight: 600;
-  transition: all 0.25s ease;
+  transition: all 0.18s ease;
 }
 
 .button-primary {
   background: var(--accent);
-  color: #fdfbf5;
-  /* 微妙的泥土质感 */
-  box-shadow: 2px 3px 0 rgba(53, 77, 46, 0.3);
+  color: #fbf8f2;
 }
 
 .button-primary:hover {
   background: var(--accent-strong);
-  transform: translateY(-2px);
-  box-shadow: 3px 5px 0 rgba(53, 77, 46, 0.35);
 }
 
 .button-secondary {
   border-color: var(--line-strong);
-  background: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.6);
 }
 
 .button-secondary:hover {
   background: var(--surface-strong);
-  transform: translateY(-1px);
 }
 
 .hero-panel {
@@ -284,16 +238,10 @@ code {
 
 .field-card {
   width: 100%;
-  /* 更像笔记本/记事本的风格 */
-  border-radius: 4px;
-  border: 2px solid var(--line-strong);
-  background: 
-    linear-gradient(90deg, rgba(166, 124, 82, 0.03) 1px, transparent 1px),
-    linear-gradient(rgba(166, 124, 82, 0.03) 1px, transparent 1px),
-    linear-gradient(180deg, #fcfaf4 0%, #f4ede2 100%);
-  background-size: 20px 20px, 20px 20px, 100% 100%;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, #fcfaf4 0%, #f4ede2 100%);
   padding: 18px 18px 10px;
-  box-shadow: 3px 4px 0 rgba(60, 50, 35, 0.1);
 }
 
 .field-card-head {
@@ -351,14 +299,6 @@ code {
   margin-bottom: 24px;
 }
 
-.section-divider {
-  width: 60px;
-  height: 3px;
-  background: linear-gradient(90deg, var(--accent), var(--signal));
-  border-radius: 2px;
-  margin-top: 8px;
-}
-
 .journal-subsection + .journal-subsection {
   margin-top: 28px;
 }
@@ -413,19 +353,9 @@ code {
 .metric-card,
 .featured-post-card {
   border: 1px solid var(--line);
-  /* 更柔和的有机圆角 */
-  border-radius: 12px;
+  border-radius: 18px;
   padding: 22px;
-  background: rgba(255, 255, 255, 0.55);
-  transition: all 0.3s ease;
-}
-
-.topic-card:hover,
-.post-card:hover,
-.metric-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 6px 8px 20px rgba(42, 36, 24, 0.1);
-  background: rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.58);
 }
 
 .start-card-foundation {
