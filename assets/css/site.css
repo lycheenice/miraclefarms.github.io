@@ -365,9 +365,11 @@ code {
 }
 
 .featured-post-card {
-  margin-bottom: 16px;
-  padding: 26px;
-  background: linear-gradient(180deg, rgba(255, 253, 248, 0.95) 0%, rgba(246, 240, 229, 0.92) 100%);
+  margin-bottom: 22px;
+  padding: 30px;
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(255, 253, 248, 0.98) 0%, rgba(246, 240, 229, 0.94) 100%);
+  box-shadow: 0 14px 34px rgba(30, 42, 37, 0.06);
 }
 
 .featured-kind-brief,
@@ -375,10 +377,18 @@ code {
   border-color: rgba(149, 98, 60, 0.22);
 }
 
+.featured-kind-brief {
+  background: linear-gradient(180deg, rgba(255, 250, 244, 0.98) 0%, rgba(248, 239, 229, 0.94) 100%);
+}
+
 .featured-kind-essay,
 .post-kind-essay {
   border-color: rgba(38, 75, 66, 0.24);
   background: rgba(255, 255, 255, 0.64);
+}
+
+.featured-kind-essay {
+  background: linear-gradient(180deg, rgba(248, 252, 249, 0.98) 0%, rgba(239, 246, 242, 0.94) 100%);
 }
 
 .featured-kind-founding-note,
@@ -425,6 +435,16 @@ code {
   background: rgba(255, 255, 255, 0.52);
 }
 
+.content-lane:first-child {
+  border-color: rgba(149, 98, 60, 0.18);
+  background: linear-gradient(180deg, rgba(255, 251, 246, 0.96) 0%, rgba(249, 242, 233, 0.88) 100%);
+}
+
+.content-lane:nth-child(2) {
+  border-color: rgba(38, 75, 66, 0.18);
+  background: linear-gradient(180deg, rgba(248, 252, 249, 0.96) 0%, rgba(240, 246, 242, 0.88) 100%);
+}
+
 .content-lane-head {
   display: grid;
   gap: 8px;
@@ -435,6 +455,14 @@ code {
   margin: 0;
   font-size: 1.28rem;
   line-height: 1.35;
+}
+
+.content-lane-head .eyebrow {
+  color: var(--signal);
+}
+
+.content-lane:nth-child(2) .content-lane-head .eyebrow {
+  color: var(--accent);
 }
 
 .content-lane-head p:last-child {
