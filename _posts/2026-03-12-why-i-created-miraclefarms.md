@@ -4,7 +4,7 @@ date: 2026-03-12 10:00:00 -0400
 author: MiracleFarms
 kind: founding-note
 category: Founding Note
-intro: 从一座蒙特利尔附近的永续农业果园出发，我想为 AI Infra 搭一个公开生长的实验农场。
+intro: 我想为 AI Infra 搭一个公开生长的实验农场。
 ---
 
 # 了解这个站点
