@@ -156,20 +156,23 @@ code {
 
 .hero {
   display: grid;
-  grid-template-columns: 1.2fr 0.8fr;
-  gap: 28px;
-  padding: 46px;
+  grid-template-columns: 1fr;
+  gap: 24px;
+  padding: 80px 46px;
   position: relative;
+  text-align: center;
+  max-width: 720px;
+  margin: 0 auto;
 }
 
 /* 简约版：移除装饰角标和签名 */
 
 .eyebrow {
   margin: 0;
-  color: var(--signal);
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
@@ -187,12 +190,11 @@ code {
 }
 
 .hero-tagline {
-  margin: 16px 0 14px;
+  margin: 0;
   color: var(--text);
-  font-size: clamp(1.16rem, 2.8vw, 1.5rem);
-  font-weight: 600;
-  line-height: 1.5;
-  max-width: 16ch;
+  font-size: clamp(1.3rem, 3vw, 1.6rem);
+  font-weight: 500;
+  line-height: 1.4;
 }
 
 .hero-intro,
@@ -200,20 +202,22 @@ code {
 .post-body p,
 .post-body li,
 .section-intro {
-  font-size: 1.12rem;
-  line-height: 1.85;
+  font-size: 1rem;
+  line-height: 1.7;
 }
 
 .hero-intro-compact {
-  max-width: 36rem;
-  color: var(--muted);
+  max-width: 480px;
+  margin: 0 auto;
+  color: var(--muted-soft);
 }
 
 .hero-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 28px;
+  gap: 16px;
+  justify-content: center;
+  margin-top: 32px;
 }
 
 .button {
