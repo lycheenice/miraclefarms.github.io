@@ -478,6 +478,32 @@ code {
   background: linear-gradient(180deg, rgba(252, 250, 244, 0.96) 0%, rgba(244, 237, 226, 0.88) 100%);
 }
 
+.lane-more-link {
+  margin-top: 14px;
+}
+
+.archive-section {
+  min-height: 60vh;
+}
+
+.archive-list {
+  display: grid;
+  gap: 16px;
+}
+
+.archive-card {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 22px;
+  background: rgba(255, 255, 255, 0.56);
+}
+
+.archive-card h3 {
+  margin: 0 0 10px;
+  font-size: 1.22rem;
+  line-height: 1.4;
+}
+
 .post-card-meta {
   margin: 0;
   color: var(--muted);
