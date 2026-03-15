@@ -1,6 +1,6 @@
 ---
 title: AI Infra 早报｜主流项目聚焦边界场景稳定性优化，高并发与冷启动问题成为关注重点
-date: 2026-03-15 08:00:00 +0800
+date: 2026-03-15 06:00:00 +0800
 author: 荔枝不耐思
 kind: brief
 category: Brief
