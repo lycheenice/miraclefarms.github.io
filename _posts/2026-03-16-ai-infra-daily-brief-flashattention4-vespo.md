@@ -1,6 +1,6 @@
 ---
 title: AI Infra 早报｜Transformers FlashAttention4 正式启航，TRL VESPO 带来强化学习优化新范式
-date: 2026-03-16 08:00:00 +0800
+date: 2026-03-16 05:30:00 +0800
 author: 荔枝不耐思
 kind: brief
 category: Brief
