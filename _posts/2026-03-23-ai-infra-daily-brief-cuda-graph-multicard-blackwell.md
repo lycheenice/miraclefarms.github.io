@@ -63,19 +63,35 @@ Ray Core 消除了 Worker 上下文中的可重入锁[[13]](https://github.com/r
 今天的早报没有大版本发布，但信息密度不低。CUDA graph 边界延伸、Blackwell 适配、Qwen3 MoE 长上下文、投机解码重构——这几件事分散在不同仓库，但指向同一个方向：推理引擎正在把过去两年的技术探索转化为生产就绪的工程能力，一个缺口一个缺口地补。
 
 ## 参考来源
+
 [1] [vLLM MRV2 Pipeline Parallelism CUDA graph](https://github.com/vllm-project/vllm/pull/35162)
+
 [2] [vLLM PP CUDA graph 测试](https://github.com/vllm-project/vllm/pull/37830)
+
 [3] [SGLang decode CUDA graph 覆盖率提升](https://github.com/sgl-project/sglang/pull/20978)
+
 [4] [SGLang SM120 CUTLASS FP8 Blockwise GEMM](https://github.com/sgl-project/sglang/pull/20887)
+
 [5] [llama.cpp CUDA BF16 FA 编译修复 b8474](https://github.com/ggml-org/llama.cpp/releases/tag/b8474)
+
 [6] [vLLM MRV2 spec decode 多模态 embedding](https://github.com/vllm-project/vllm/pull/36097)
+
 [7] [SGLang Qwen3 MoE 上下文并行](https://github.com/sgl-project/sglang/pull/18233)
+
 [8] [vLLM NemotronHPuzzle + NemotronHMTP](https://github.com/vllm-project/vllm/pull/37803)
+
 [9] [SGLang Ngram 参考式投机解码重构](https://github.com/sgl-project/sglang/pull/20393)
+
 [10] [SGLang overlap scheduling VRAM 泄露修复](https://github.com/sgl-project/sglang/pull/20697)
+
 [11] [SGLang flashinfer_trtllm_routed fp8+bf16 RL](https://github.com/sgl-project/sglang/pull/20214)
+
 [12] [Megatron-LM 通用 Pile 数据脚本](https://github.com/NVIDIA/Megatron-LM/pull/3902)
+
 [13] [Ray Worker 可重入锁修复](https://github.com/ray-project/ray/pull/61925)
+
 [14] [OpenClaw chatRunState 缓冲区泄露修复](https://github.com/openclaw/openclaw/pull/52428)
+
 [15] [OpenClaw Discord 图片投递修复](https://github.com/openclaw/openclaw/pull/52489)
+
 [16] [OpenClaw 插件路径逃逸安全检查精细化](https://github.com/openclaw/openclaw/pull/52491)
