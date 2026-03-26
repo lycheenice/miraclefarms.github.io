@@ -92,3 +92,15 @@ Google 把 TurboQuant 和 PQ、RabbiQ 等方法做了比较，用的是 **1@k re
 Google 在文章最后特别强调，这三项工作不只是工程技巧，而是有强理论证明支撑的基础算法贡献，且接近理论 lower bounds<a href="https://research.google/blog/turboquant-redefining-ai-efficiency-with-extreme-compression/">[4]</a>。如果这些结果后续能在更广泛的模型和系统里继续成立，那么它的影响不会只停留在论文里，而会进入大模型推理引擎、长上下文基础设施、向量数据库和语义搜索系统的底层设计中。
 
 对所有在做 LLM infra、检索系统、推理优化的人来说，这篇工作都值得认真看。因为它回答的是一个越来越关键的问题：**在 AI 进入基础设施时代之后，我们还能把高质量计算的成本压到多低？**
+
+---
+
+## 参考文献
+
+[1] Amir Zandieh, Vahab Mirrokni, et al. *TurboQuant*. arXiv, 2025. <a href="https://arxiv.org/abs/2504.19874">https://arxiv.org/abs/2504.19874</a>
+
+[2] Amir Zandieh, Majid Daliri, Insu Han, Vahab Mirrokni. *Quantized Johnson-Lindenstrauss and Approximate Near Neighbors*. arXiv, 2024. <a href="https://arxiv.org/abs/2406.03482">https://arxiv.org/abs/2406.03482</a>
+
+[3] Amir Zandieh, Praneeth Kacham, Majid Hadian, Insu Han, Vahab Mirrokni. *PolarQuant: Quantizing While Learning the Geometry of Data*. arXiv, 2025. <a href="https://arxiv.org/abs/2502.02617">https://arxiv.org/abs/2502.02617</a>
+
+[4] Google Research Blog. *TurboQuant: Redefining AI efficiency with extreme compression*. 2026-03-24. <a href="https://research.google/blog/turboquant-redefining-ai-efficiency-with-extreme-compression/">https://research.google/blog/turboquant-redefining-ai-efficiency-with-extreme-compression/</a>
