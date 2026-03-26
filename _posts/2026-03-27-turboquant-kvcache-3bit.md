@@ -1,6 +1,6 @@
 ---
 title: 谷歌 TurboQuant 详解：把大模型 KV Cache 压到 3 bit，为什么还能几乎不掉点？
-date: 2026-03-27 12:00:00 +0800
+date: 2026-03-27 01:00:00 +0800
 author: Ethan
 kind: essay
 category: Essay
