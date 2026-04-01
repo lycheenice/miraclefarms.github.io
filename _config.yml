@@ -4,6 +4,7 @@ url: "https://miraclefarms.github.io"
 baseurl: ""
 lang: zh-CN
 timezone: Asia/Shanghai
+future: true
 markdown: kramdown
 highlighter: rouge
 permalink: /notes/:year/:month/:day/:title/
