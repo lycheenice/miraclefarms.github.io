@@ -4,7 +4,7 @@ date: 2026-04-03 09:30:00 +0800
 author: Ethan
 kind: essay
 category: Essay
-intro: 基于论文《HierarchicalKV: A GPU Hash Table with Cache Semantics for Continuous Online Embedding Storage》的原文内容，梳理其研究背景、目标、核心创新、实验结论与未来展望，重点分析作者如何以缓存语义重构 GPU 哈希表，用于持续在线 embedding 存储。
+intro: "基于论文《HierarchicalKV: A GPU Hash Table with Cache Semantics for Continuous Online Embedding Storage》的原文内容，梳理其研究背景、目标、核心创新、实验结论与未来展望，重点分析作者如何以缓存语义重构 GPU 哈希表，用于持续在线 embedding 存储。"
 ---
 
 > **说明**：本文依据论文 *HierarchicalKV: A GPU Hash Table with Cache Semantics for Continuous Online Embedding Storage*（Rong et al., 2026, arXiv:2603.17168v1）撰写。文中关于背景、目标、方法、实验结果与局限性的表述，均以原文为依据；涉及图示时，采用论文原始 Figure 编号进行对应说明。
