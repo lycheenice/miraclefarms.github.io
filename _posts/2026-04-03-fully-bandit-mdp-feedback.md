@@ -1,305 +1,129 @@
 ---
-title: "在只看总分时学习 MDP：精读《Learning Markov Decision Processes under Fully Bandit Feedback》"
+title: "在只看总分时学习 MDP：从 fully bandit feedback 重新理解弱反馈强化学习"
 date: 2026-04-03 20:30:00 +0800
 author: Ethan
 kind: essay
 category: Essay
-intro: 当 episodic MDP 的反馈弱到连 trajectory 都看不见、只剩 episode 级 aggregate reward 时，学习仍可做到 ~O(√T) regret，但必须为信息缺失支付指数级结构复杂度。本文精读论文《Learning Markov Decision Processes under Fully Bandit Feedback》，系统解析其问题设定、ExpRef 算法、upper/lower bound、ordered MDP 改进及其对 prophet inequality 等问题的意义。
+intro: 当 episodic MDP 的反馈弱到连 trajectory 都看不见、只剩 episode 级 aggregate reward 时，学习仍可做到 ~O(√T) regret，但必须为信息缺失支付指数级结构复杂度。本文以技术文章方式梳理《Learning Markov Decision Processes under Fully Bandit Feedback》的背景、目标、创新、结论与展望。
 ---
 
-强化学习理论里，一个常被默认但未必现实的前提，是 agent 能看到自己走过的 state-action，以及每一步 reward。论文开篇就把这个前提挑明了：
+强化学习理论里，一个常被默认却未必现实的前提，是 agent 在每一轮交互中不仅能看到自己走过的状态和动作，还能拿到逐步 reward。这个前提让 credit assignment、value estimation 和 optimism-based exploration 都有了相对明确的实现路径，也支撑了 episodic RL 在 semi-bandit feedback 下已经相当成熟的 regret 理论。
 
-> “A standard assumption in Reinforcement Learning is that the agent observes every visited state-action pair in the associated Markov Decision Process (MDP), along with the per-step rewards.”（Abstract, p.1）
+但真实系统并不总能给出这么细粒度的反馈。很多顺序决策问题里，系统能拿到的往往只是一次完整执行后的总结果：例如一次策略执行最终带来的总收益、一次在线决策流程最终的完成率、一次多步交互最终是否成功。在这种场景下，agent 看不到中间 trajectory，也无法把 reward 精确分摊到每一步动作上。于是问题就变成：**如果我们只能拿到一整个 episode 的 aggregate reward，而看不到中间状态与动作，MDP 还学不学得动？**
 
-但作者研究的不是这个经典 setting，而是更严苛的 fully bandit feedback：
+论文《Learning Markov Decision Processes under Fully Bandit Feedback》回答的正是这个问题。它研究的是比 trajectory feedback 更进一步压缩的信息结构：agent 不仅拿不到逐步 reward，连 trajectory 本身也看不到，只能在每轮结束后得到一个总回报信号。在这个设置下，作者给出了第一个计算高效、且 regret 仍保持在 \~O(√T) 量级的 episodic MDP 学习算法；同时也证明，这种设置下对结构参数的指数依赖并不是分析上的松弛，而是信息论意义上的必要代价。对一般 MDP，这个代价落在 horizon \(H\) 上；对 ordered MDP，则可以压缩到宽度/容量参数 \(k\) 上。[1]
 
-> “In this paper, we consider a far more restrictive ‘fully bandit’ feedback model for episodic MDPs, where the agent does not even observe the visited state-action pairs—it only learns the aggregate reward.”（Abstract, p.1）
-
-这意味着什么？
-
-简单说，agent 每轮只知道“这局总共得了多少分”，却不知道：
-
-- 走过哪些状态；
-- 哪个动作导致了好结果或坏结果；
-- 甚至不知道最终回报是沿哪条 trajectory 积累出来的。
-
-这比 trajectory feedback 还要弱一层。论文在引言中明确区分：
-
-> “In our setting, the agent does not even observe the trajectory—it merely receives the aggregate reward as feedback.”（§1 Introduction, p.2）
-
-从理论角度看，这篇论文最重要的地方在于，它没有把问题止步于“能不能做”，而是完整回答了三个层次的问题：
-
-1. **能不能学？** 能，而且能做到 ~O(√T) regret。  
-2. **代价是什么？** 一般 MDP 下，regret 对 horizon 呈指数依赖。  
-3. **这种代价能不能缓解？** 只有在 ordered MDP 这类有强结构先验的情形下，才可以把指数依赖从 \(H\) 压缩到 \(k\)。
-
-也就是说，这篇文章真正建立的是一条关于 **feedback granularity 与 MDP 可学性边界** 的理论链条。
+这篇论文之所以值得单独写成技术文章，不是因为它又提供了一个新的 regret bound，而是因为它把一个长期被默认忽略的问题正式推到了前台：**反馈粒度本身，就是 MDP 可学习性的一部分。**
 
 ---
 
-## 一、问题到底定义成了什么样
+## 一、背景：为什么 fully bandit feedback 值得单独研究
 
-论文研究的是 finite-horizon episodic MDP，形式化为 \((H, k, A, P, r)\)。原文定义是：
+过去几年，强化学习在有限时域 MDP 下的理论边界已经相当清晰。只要 agent 能看到访问过的 state-action 对以及逐步 reward，episodic RL 的 minimax regret 已经能被很好刻画。也正因为如此，很多理论结果默认采用 semi-bandit feedback：trajectory 可见，per-step reward 可见，局部 credit 也因此可恢复。[1]
 
-> “We consider an episodic Markov Decision Process (MDP), given by the tuple (H, k, A, P, r). Here, H is the number of stages (horizon of each episode), k is the ‘width’ (i.e., number of states) in each stage, and A is the set of actions.”（§2 Problem Formulation, p.3）
+但问题在于，现实世界中的反馈结构往往远没有这么慷慨。先前研究已经开始放宽这一点，例如 trajectory feedback：agent 可以看到自己走过的整条路径，但每轮只拿到一个 aggregate reward。相比 semi-bandit，这已经更接近某些实际系统，因为它不要求环境提供逐步可归因的奖励信号。
 
-其中：
+fully bandit feedback 则进一步走到更极端的一端：agent 既看不到逐步 reward，也看不到中间 trajectory，只能拿到 episode 结束后的一个总分数。这种设定的难度远高于 trajectory feedback，因为 learner 失去了最基础的中间监督信号。它不再能基于“我到了哪个状态”“我在哪一步做了哪个动作”来更新局部估计，而只能从一个压缩过的 scalar 结果中，反推出整条策略中哪些局部决策更可能有效。[1]
 
-- \(H\) 是每轮 episode 的长度；
-- \(k\) 是每个 stage 的状态宽度；
-- \(A\) 是动作集合；
-- 状态按 stage 组织，只允许在相邻 stage 间转移；
-- 所有 reward 非负，且单次执行的总 reward 被归一化到 1 以内。
+从理论角度说，这类问题之所以重要，在于它逼迫我们重新回答一个更基础的问题：**MDP 的可学习性，到底依赖环境结构，还是依赖反馈可见性？** semi-bandit setting 下，这两者常被混在一起；fully bandit feedback 则把两者拆开了。环境结构还在，policy 空间也还在，但反馈被压缩到了最低限度。此时若问题仍可学习，就说明结构本身已经提供了足够的可辨识性；若代价显著上升，也说明此前很多“RL 可学”的判断，其实暗中依赖了较强的观测假设。
 
-真正关键的是反馈定义。作者写得非常明确：
+这篇论文的重要性，就在于它把这个问题从直觉层面推进到了可证明的理论层面。
 
-> “In each episode t ∈ [T], the agent chooses a policy π^t and receives as feedback just the cumulative reward from one policy execution of π^t. This is the setting of bandit feedback.”（§2, p.4）
+---
 
-随后又补了一句更重要的话：
+## 二、目标：论文到底想解决什么
 
-> “In particular, the agent does not observe the sequence of states visited by policy π. This makes our setting significantly harder than the standard semi-bandit feedback setting.”（§2, p.4）
+论文研究的是 finite-horizon episodic MDP。状态按 stage 组织，每轮执行有固定 horizon \(H\)，每一层有最多 \(k\) 个状态，动作集合大小为 \(A\)。目标仍然是在线交互 \(T\) 轮后，尽可能逼近最优 policy，并最小化 cumulative regret。[1]
 
-这就是全文的核心矛盾：**学习目标仍是找最优 policy，但反馈被压缩成了单个 scalar。**
+难点不在目标函数，而在反馈形式。每轮交互中，learner 先提交一整个 policy，然后环境只返回该 policy 执行一次后的 aggregate reward。中间经过了哪些状态、执行了哪些局部动作、在哪里发生了状态转移，learner 一概不知道。[1]
 
-在 semi-bandit MDP learning 里，你能沿 trajectory 回溯 credit；在 fully bandit 里，你只能从“总分”反推是哪段 policy 可能有效。这使得问题本质上不再只是探索，而是**信息可辨识性**。
+因此，这篇论文的目标可以拆成三个递进问题：
 
-## 二、为什么最自然的办法会失败：把每个 policy 当成一支 arm
+1. **算法问题**：在这种极弱反馈下，能否设计出计算高效、且 regret 次线性的学习算法？  
+2. **边界问题**：如果能，regret 会比 semi-bandit / trajectory feedback 多付出多少代价？  
+3. **结构问题**：这种代价是一般性的，还是可以通过结构先验显著改善？
 
-面对 only-aggregate-reward 的 setting，最顺手的 reduction 是：把每个 policy 看成一支 bandit arm，直接上 UCB。论文自己也先提出了这个想法：
+这三个问题共同构成了全文主线。作者并没有满足于“给出一个 upper bound”，而是同时把算法、下界、结构化改进和应用场景连成了一个完整闭环。[1]
 
-> “A natural first attempt for MDP learning under bandit feedback is to apply the UCB algorithm by treating each policy as a single arm.”（§3, p.5）
+---
 
-但作者马上说明，这条路在统计和计算上都走不通：
+## 三、创新：这篇论文真正做了哪几件新事
 
-> “However, this approach leads to a regret bound of A^{Hk/2} · √T as the total number of policies is A^{Hk}. This approach is also computationally inefficient as it requires storing an index for every policy.”（§3, p.5）
+### 1. 证明 fully bandit episodic MDP 仍然能做到 \~O(√T) regret
 
-这个结论很关键。它说明 fully bandit feedback 的难点不是“bandit 很难”，而是 **policy 空间是指数级的**。如果没有额外结构，你就会退化成在 \(A^{Hk}\) 个巨型 arms 上做学习。
+论文最直观的创新，是在 fully bandit feedback 下给出了第一个高效算法。这个结果本身已经不简单，因为最自然的思路是把每个 policy 当成一支 bandit arm，但那会立刻遇到指数级策略空间：policy 数量是 \(A^{Hk}\)，不论从统计上还是计算上都不可接受。[1]
 
-论文后续的全部技术工作，本质上都在回答一个问题：
+作者绕开这条死路的关键，是没有在 policy 级别做 learning，而是把问题降到 state-level active set refinement：在每个状态维护一个仍可能最优的动作集合，然后通过分 phase 的方式反复探索、比较、消元。也就是说，它学的不是“哪条完整策略最好”，而是“在某个状态上，哪些动作已经可以安全排除”。这一步把问题从指数级策略搜索，重新拉回到 MDP 的局部结构上。
 
-**能不能在不显式枚举 policy 的前提下，仍然利用 MDP 的 stage-state 结构，对局部动作做学习和消元？**
+### 2. 构造了在看不到 trajectory 时仍能做局部比较的技术桥梁
 
-答案是能，但代价由状态访问概率和 horizon 共同决定。
+如果说上一点是算法结构上的创新，那么真正的技术核心，是作者解决了一个更根本的问题：**在只能看到总回报时，如何比较某个状态上的两个动作谁更好？**
 
-## 三、主算法的核心思想：不是消元 policy，而是消元每个 state 上的动作集
+论文给出的答案，是通过 Explore-then-Refine（ExpRef）与 backward induction 构造一类特殊的实验策略：前缀部分随机探索，尾部策略固定，只在目标状态处切换待比较动作。这样一来，局部动作差异就会以“状态访问概率 × episode 均值差”的形式反映到 aggregate reward 上。换句话说，局部信息并没有消失，而是被访问概率 \(Q_{l,i}\) 稀释后嵌入了全局总回报。这个桥梁是全篇最关键的技术支点，因为没有它，fully bandit feedback 下就无法进行局部 credit assignment。[1]
 
-论文的算法主线是一个 successive elimination 框架，但它消掉的不是整个策略，而是每个 state 上的 active actions。
+### 3. 说明一般 MDP 中对 \(H\) 的指数依赖不是 proof artifact
 
-作者在引言里概括：
+论文的第三项创新，是把困难边界讲清了。一般 MDP 下，作者给出的 regret 上界 roughly 为 \((Ak)^H\sqrt{T}\) 量级；更重要的是，他们同时证明了对 horizon \(H\) 的指数依赖是必要的，而不是分析技巧不够锋利造成的结果。[1]
 
-> “Our algorithm is based on a successive-elimination approach … where in each phase we explore all actions in an ‘active set’ and then refine the active sets using empirical maximizers.”（§1 Introduction, p.2）
+这件事理论意义非常大。因为一旦下界成立，它就意味着：在 fully bandit feedback 下，环境完全可以把关键信息隐藏在一整条长度 \(H\) 的动作序列里，而 learner 每轮只看到总 reward，这时它的信息处境就接近在 \(A^H\) 个 bandit arms 之间辨认最优臂。换句话说，**信息缺失本身就能把 horizon 变成复杂度瓶颈。**
 
-在正文中，算法被进一步说明为一个带误差参数 \(\varepsilon\) 的 phase-based 过程：
+### 4. 发现 ordered structure 可以把指数代价从 \(H\) 压到 \(k\)
 
-> “Our algorithm proceeds in phases indexed by an error parameter ε > 0, maintaining an ‘active set’ A_{l,i} of actions for each state (l, i).”（§3, p.5）
+如果论文只停在这里，结论虽然完整，但会显得过于悲观。它的第四项创新，是研究了一类带有强结构先验的 ordered MDP，并证明在这类问题中，regret 的指数 dependence 可以从 horizon \(H\) 改写为宽度/容量参数 \(k\)。[1]
 
-其逻辑大致是：
+ordered MDP 的核心在于：状态有自然顺序，转移只能 downward 或保持不变，同时动作也带有已知顺序，使得某些动作更倾向于让系统留在当前 level。利用这层信息，算法不再需要对前缀动作做完全均匀的随机探索，而是可以更多选择“更保守”的动作来提高关键状态的可达性。这样，访问概率控制会显著改善，误差递推自然也不再沿整个 horizon 指数爆炸。[1]
 
-1. 对每个 state \((l,i)\) 维护一个当前还“有希望”的动作集合 \(A_{l,i}\)；
-2. 在当前 phase 中，围绕这些 active sets 运行一批 carefully designed episodes；
-3. 用 bandit feedback 估计各动作相对经验最优动作的差距；
-4. 删除差距足够大的动作，得到新的 refined set \(N_{l,i}\)；
-5. 把误差参数 \(\varepsilon\) 缩小一半，进入下一轮。
+这说明一个非常重要的结论：在 fully bandit feedback 下，结构不是一个锦上添花的优化项，而是决定问题是否仍有现实可学性的核心变量。
 
-原文是：
+### 5. 把理论结果连接到经典 sequential stochastic optimization
 
-> “Then, the algorithm performs O(\frac{1}{ε^2} AkH log T) episodes with various policies using the active sets {A_{l,i}}. It then refines its active sets based on bandit feedback to obtain a new collection {N_{l,i}}.”（§3, p.5）
+论文的最后一个重要创新，是没有把 ordered MDP 留在抽象层面，而是把它映射到了几个经典问题上，包括 k-item prophet inequality、sequential posted pricing 和 stochastic knapsack。[1]
 
-> “This ensures that we make significant progress towards optimality: the error parameter ε reduces by factor two in each phase.”（§3, p.5）
+这一步的意义在于，它表明论文回答的并不只是 RL 理论圈的一个特殊设定，而是在更一般地回答：**当一个顺序随机优化问题只能给出 outcome-level feedback，而中间过程不可见时，学习还能做到什么程度？**
 
-这里最重要的不是“phase”或“doubling trick”本身，而是作者把学习单元从 policy-level 降到了 state-level。这让问题不必直接面对 \(A^{Hk}\) 个策略，而是转化为：
+这种跨域映射，让论文的价值从“一个新 regret bound”扩展到了“一个关于弱反馈 sequential decision 的统一理论视角”。
 
-- 如何让某个状态足够经常被访问；
-- 如何在看不到 trajectory 的前提下，比较该状态的不同动作；
-- 如何让这种局部比较沿 horizon 反向递推，最终影响全局 regret。
+---
 
-## 四、ExpRef 的两个核心难点：到不了状态，和看不清局部动作
+## 四、总结：这篇论文最终给出了什么判断
 
-论文把单个 phase 的子程序称为 **Explore then Refine（ExpRef）**。作者明确点出了两个技术难点。
+如果必须用一句话总结，我会说：**这篇论文证明了，在反馈极端贫瘠的情况下，episodic MDP 依然是可学习的，但代价不再主要体现为对时间维度 \(T\) 的学习速率，而是体现为对环境结构参数的指数复杂度。**
 
-### 1. 目标状态可能压根很难到达
+更具体一点，它给出的判断有四层：
 
-原文写道：
+1. fully bandit feedback 下，episodic MDP 并没有失去 \(\widetilde{O}(\sqrt{T})\) 意义上的可学习性；  
+2. 但一般 MDP 中，对 horizon \(H\) 的指数 dependence 是必要的；  
+3. 若环境满足 ordered structure，这个代价可以显著压缩到 \(k\)；  
+4. 这种结构化结果并非纸上谈兵，而是直接适用于 prophet inequality、posted pricing、stochastic knapsack 等经典问题。[1]
 
-> “The probability of reaching a particular state (l, i) depends on the sequence of actions taken before reaching it. This probability is difficult to control under bandit feedback. If it is too small, we cannot obtain sufficient information about that state.”（§3.1, p.5）
+这套结论最有价值的地方，在于它既不盲目乐观，也不空泛悲观。它没有说“极弱反馈也没关系，算法照样学得很好”，而是诚实地给出代价；但它也没有停在“太难了所以没法学”，而是进一步指出：只要结构先验足够强，fully bandit learning 依然可以被压回一个有意义的范围内。
 
-作者的解决思路是，先在前缀阶段故意做“统一随机探索”：
+这比单纯给一个 upper bound 更有洞察力，因为它真正告诉读者：**问题哪里难、为什么难、什么结构能救回来、救回来多少。**
 
-> “ExpRef uniformly samples actions at all states in the stages before i. This guarantees that the probability of reaching any given state is at least some fraction of the corresponding probability in the optimal policy.”（§3.1, p.5）
+---
 
-于是论文定义了随机 exploration policy \(\eta\) 和状态访问概率 \(Q_{l,i}\)，并在 Lemma 3.2 中给出一个关键访问概率下界：
+## 五、展望：这篇论文对后续研究意味着什么
 
-> “For any i ∈ [H] and l, s ∈ [k], we have Q_{s,i+1} ≥ max_{a∈A_{l,i}} \frac{Q_{l,i}}{A} p_i(s | l, a).”（Lemma 3.2, p.6）
+我认为这篇论文最大的长期意义，不是某个具体算法，而是它重新定义了弱反馈 sequential learning 的讨论方式。
 
-### 2. 局部动作价值依赖未来尾策略
+第一，它提醒我们，未来在分析 RL 或 sequential decision 问题时，不能只看环境结构，也必须把反馈粒度作为一等公民。很多以往看似自然的结论，其实默认依赖了轨迹可见、逐步 reward 可见、局部 credit 可见等强观测假设。fully bandit feedback 让这些假设第一次被系统性剥离出来。[1]
 
-第二个难点是，即便你到达了 state \((l,i)\)，也没法直接比较动作 \(a\) 和 \(b\)，因为它们的好坏还取决于后面的 tail policy。
+第二，它为一类现实系统提供了理论参照。很多真实业务里，我们能拿到的确实只是最终 KPI 或整局 outcome，而不是每一步的中间标签。此时，问题不再是“能不能直接套用标准 RL”，而是要问：环境是否存在 ordered structure、容量约束、单调转移、阈值式动作等可利用结构。如果有，那么这篇论文给出的 ordered MDP 视角就会非常有启发性。
 
-作者直接写道：
+第三，它也为后续研究留下了很明确的空间。例如：
 
-> “Another challenge is that the value function (1) of a state also depends on future actions.”（§3.1, p.6）
+- 在 fully bandit 与 trajectory feedback 之间，是否还存在更细粒度的中间反馈模型，可得到更平滑的复杂度过渡？  
+- 对 ordered MDP 之外的其他结构化 MDP，是否也能把指数 dependence 从 \(H\) 压缩到更小的结构参数？  
+- 在实践层面，是否能设计出比 phase-based elimination 更高效、但仍可审计的弱反馈学习算法？
 
-所以算法不试图“一次性学出全局最优动作”，而是采用 backward induction：
+这些问题都不是本文彻底解决的，但正因为它把边界画清了，后续工作才知道该沿着哪里推进。
 
-> “Hence, instead of attempting to directly learn the optimal action, ExpRef proceeds via backward induction.”（§3.1, p.6）
+从这个意义上说，这篇论文真正完成的，不只是一个结果，而是一次叙事转向：**当反馈少到几乎只剩结果本身时，学习是否还成立，不再只是“探索够不够”的问题，而是“结构能不能提供足够可辨识性”的问题。**
 
-## 五、全文最关键的桥梁：局部动作差异如何从总回报中被识别出来
+这也是我认为它最值得被长期记住的地方。
 
-我认为论文最值得记住的一条公式是 Lemma 3.5：
+---
 
-> “Φ_{l,i}(a) − Φ_{l,i}(b) = Q_{l,i} · [V_{l,i}(a, α̂_{j>i}) − V_{l,i}(b, α̂_{j>i})].”（Lemma 3.5, p.7）
+## 参考来源
 
-这是全文真正的技术支点。
-
-它说的是：在某种特殊构造的实验 policy 下，如果你只改变 state \((l,i)\) 的动作，那么你在 episode 层面看到的平均总回报变化，等于这个 state 被访问到的概率 \(Q_{l,i}\)，乘以该状态下两种动作在固定尾策略下的局部 value difference。
-
-这意味着 fully bandit feedback 并不等于“局部信息完全消失”，而是说：**局部信息被访问概率稀释后，埋进了全局总回报的均值差里。**
-
-## 六、为什么一般 MDP 的 regret 会对 \(H\) 呈指数依赖
-
-一般 MDP 下，作者定义：
-
-> “For any (l, i) ∈ [k] × [H], define C_{l,i} = (H − i + 1)(Ak)^{H−i}.”（Eq. (3), p.6）
-
-并在每个状态只保留那些经验表现离最优不太远的动作。作者自己指出：
-
-> “One of our main contributions is in coming up with the correct elimination thresholds (as a function of the stage and level) that enables an inductive proof of the regret bound.”（§3, p.5）
-
-进一步的核心递推条件是 Lemma 3.3：
-
-> “For any (l, i) ∈ [k] × [H], and a ∈ A_{l,i} we have: \frac{ε}{Q_{l,i}} + \sum_{s∈[k]} p_i(s | l, a) \frac{C_{s,i+1}}{Q_{s,i+1}} ε ≤ \frac{C_{l,i}}{Q_{l,i}} ε.”（Lemma 3.3, p.6-7）
-
-由于访问概率本身会随着 horizon 展开而变小，而一般 MDP 又没有额外结构帮助你更强地控制 reachability，这个预算递推自然会长出 \((Ak)^{H-i}\) 级别的因子。
-
-## 七、主定理：一般 episodic MDP 在 fully bandit feedback 下仍然可学，但代价很重
-
-论文的第一个主结果是 Theorem 3.1：
-
-> “There is an online learning algorithm for MDPs with unknown transition probabilities and bandit feedback having regret O(H^2 (Ak)^H √(HkAT log T)).”（Theorem 3.1, p.5）
-
-正文里作者也给了更口语化的说法：
-
-> “Our approach obtains a significantly better regret bound of roughly (Ak)^H √T, which we prove is nearly optimal.”（§3, p.5）
-
-这个结果最值得读者把握的是两点：
-
-- 对 \(T\) 的依赖仍然是 \(\sqrt{T}\)；
-- 结构复杂度代价被转移到了 \(H\)。
-
-## 八、这个指数 dependence 不是 proof artifact，而是 lower bound 逼出来的
-
-作者在引言中先给结论：
-
-> “We show that this exponential dependence of the regret on the horizon length H is necessary.”（§1 Introduction, p.2）
-
-对应的正式表述是：
-
-> “Any bandit-feedback learning algorithm for MDPs with k = 2 levels and horizon-length H has regret Ω(min{A^H √T, T}).”（Theorem 4.1, p.16）
-
-作者还说明其 lower bound 构造本质上可规约到一个拥有 \(A^H\) 个 arms 的 Bernoulli bandit family。这说明一般 MDP 中对 \(H\) 的指数依赖不是可优化掉的小问题，而是 **fully bandit feedback 的本质代价**。
-
-## 九、ordered MDP：结构先验是这篇论文真正给出的“第二答案”
-
-作者研究了一类 structured MDP：
-
-> “We now consider a class of structured MDPs which we refer to as ordered MDPs.”（§3.3, p.12）
-
-它的核心假设是状态有序，且转移只能 downward：
-
-> “In this setting, we assume k ≤ H and that the dynamics are restricted to allow only downward transitions.”（§3.3, p.12）
-
-有了这个结构，论文给出更优 regret：
-
-> “There is an online learning algorithm for ordered MDPs with unknown transition probabilities and bandit feedback having regret O((2eHkA/k)^k √(k^3 H A T log T)).”（Theorem 3.11, p.12）
-
-并明确指出：
-
-> “When k ≪ H, this regret bound is much better than the one for general MDPs.”（§3.3, p.12）
-
-这组结果真正传达的信息是：**在 fully bandit feedback 下，结构不是锦上添花，而是决定问题是否仍有现实意义的关键变量。**
-
-## 十、ordered MDP 为什么更好学：关键不在 learning core，而在 sampling 变聪明了
-
-ordered MDP 的改进并不是推倒重来。作者明确说：
-
-> “We only modify the Sampling Action part in the algorithm and keep the Learning part essentially the same.”（§3.3, p.12）
-
-其 sampling 改造是：
-
-> “with probability k/2H we perform uniform sampling over the available actions, and with the remaining probability 1 − k/2H we deterministically choose the ‘maximal’ action” （§3.3, p.12）
-
-这会带来更强的访问概率下界。论文在 Lemma 3.12 中给出：
-
-> “Q_{l,i+1} ≥ max_{a∈A_{l,i}} e^{-k/H} · Q_{l,i} · p_i(l|l,a).”（Lemma 3.12, p.13）
-
-于是误差递推不再需要在每一层都支付一般 MDP 那样的全量代价，最终把指数 dependence 从 \(H\) 收缩到了 \(k\)。
-
-## 十一、ordered MDP 也不是免费的：关于 \(k\) 的指数 dependence 仍然必要
-
-作者没有把 ordered MDP 讲成一个“从此无忧”的故事，而是同样给了下界。引言里先概括说：
-
-> “Again, we show that the exponential dependence on k is necessary.”（§1 Introduction, p.2）
-
-这说明 ordered structure 只是把问题从“对 horizon 指数难”改写成“对容量参数指数难”，而不是让 fully bandit learning 变成一个普通的多项式难度问题。
-
-## 十二、这篇论文为什么不只是 RL 理论：它其实连到了几个经典随机优化问题
-
-ordered MDP 的价值不只是定义一个漂亮的子类，而是它确实覆盖了一批非常经典的问题。作者直接写道：
-
-> “We show that ordered MDPs capture a number of classical stochastic optimization problems.”（§3.4, p.14）
-
-其中最重要的几个应用是：
-
-### 1. k-item Prophet Inequality
-
-> “we obtain the first bandit learning algorithms for the widely studied k-item prophet inequality.”（§1 Introduction, p.2）
-
-### 2. Sequential Posted Pricing
-
-> “We can model SPP as an MDP with horizon H, width k and A actions.”（§3.4, p.15）
-
-### 3. Stochastic Knapsack
-
-> “We can model this as an MDP with horizon H, width k and A = 2 actions (accept or reject). Each state (l, i) corresponds to starting the policy at item i with remaining budget l.”（§3.4, p.15）
-
-这部分的意义在于，论文不是在一个纯粹抽象的 RL 模型上做技巧，而是在回答：对于一类容量受限、顺序决策、反馈极弱的在线随机优化问题，我们到底还能学到什么程度。
-
-## 十三、实验说明了什么：极弱反馈下，仍能接近强反馈基线
-
-论文实验聚焦于 k-item prophet inequality，并将自己的算法与 UCB-VI 对比。作者专门提醒两种方法拿到的信息强度并不在一个水平上：
-
-> “We highlight that our algorithms receive very little feedback: only the cumulative reward at the end of each episode. Whereas, UCB-VI receives feedback on all visited states and individual rewards.”（§5, p.19）
-
-摘要中则直接总结实验定位：
-
-> “our algorithm’s performance is comparable to that of a state-of-art learning algorithm (UCB-VI) with detailed state-action feedback.”（Abstract, p.1）
-
-最重要的解读是：论文并没有声称 fully bandit 方法在 regret 上击败 UCB-VI。它真正说明的是，**即便你把反馈压缩得极端贫瘠，只剩 episode 总分，结构化算法的实际表现仍可能接近拿到详细 trajectory/reward 信息的强反馈基线。**
-
-## 十四、局限与边界
-
-尽管我认为这是一篇完成度很高的论文，但它的边界也必须讲清。
-
-1. 一般 MDP 的指数 dependence 在实践上依然很重；
-2. ordered MDP 的改进建立在强结构假设之上；
-3. 实验主要集中在 k-item prophet inequality，覆盖面有限；
-4. lower bound 也意味着在 fully bandit setting 下，乐观空间其实不大。
-
-## 结语：当反馈少到几乎只剩结果本身，结构就成了学习能否成立的关键
-
-如果要用一句更抽象的话概括这篇论文，我会说：它把“反馈粒度”正式纳入了 MDP learnability 的主叙事。
-
-作者在摘要里的定义已经把问题说透：
-
-> “the agent does not even observe the visited state-action pairs—it only learns the aggregate reward.”（Abstract, p.1）
-
-而这篇论文给出的最终答案是：
-
-- **能学**：在 fully bandit feedback 下，episodic MDP 仍可做到 ~O(√T) regret；
-- **但代价很真实**：一般情形下，必须支付关于 \(H\) 的指数复杂度；
-- **结构能部分缓解**：ordered MDP 可把指数 dependence 从 \(H\) 压到 \(k\)；
-- **这不仅是抽象理论**：它直接覆盖 prophet inequality、posted pricing、stochastic knapsack 这类经典顺序随机优化问题。
-
-所以，这篇论文最值得记住的，不只是某条定理或某个算法名字，而是它给出了一条非常清晰的结论：
-
-**当 sequential decision 只能拿到 outcome-level 反馈时，学习是否仍然可能，最终取决于你还能从环境结构里榨出多少可辨识性。**
+[1] Zhengjia Zhuo, Anupam Gupta, Viswanath Nagarajan. *Learning Markov Decision Processes under Fully Bandit Feedback*. arXiv, 2026.
