@@ -1,0 +1,14 @@
+# Repo-scoped Codex configuration for miraclefarms.github.io.
+# This file is loaded only when the project is trusted.
+
+# Do not interrupt normal repo work with approval prompts.
+approval_policy = "never"
+
+# Give Codex full local access in this repository.
+sandbox_mode = "danger-full-access"
+
+# Preserve the user's normal shell environment when tools request a login shell.
+allow_login_shell = true
+
+# Use live web results when Codex needs current information.
+web_search = "live"
