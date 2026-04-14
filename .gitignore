@@ -4,3 +4,6 @@ _site
 .bundle
 vendor/
 .DS_Store
+.env
+wechat-publish.log
+node_modules/
