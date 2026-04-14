@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
 const FormData = require('form-data');
+const juice = require('juice');
 const { marked } = require('marked');
 const dotenv = require('dotenv');
 
@@ -42,7 +43,7 @@ async function getAccessToken(appid, appsecret) {
   return response.data.access_token;
 }
 
-const DOOCS_CSS = `<style>
+const DOOCS_CSS = `
 section {
   font-family: -apple-system-font, BlinkMacSystemFont, Helvetica Neue, PingFang SC, Hiragino Sans GB, Microsoft YaHei UI, Microsoft YaHei, Arial, sans-serif;
   font-size: 16px;
@@ -51,18 +52,18 @@ section {
   max-width: 100%;
   word-break: break-word;
 }
-h1 { display: table; margin: 2em auto 1em; padding: 0 1em; border-bottom: 2px solid #0F4C81; font-size: 1.3em; text-align: center; color: #0F4C81; }
-h2 { display: table; margin: 1.5em auto 1em; padding: 0.3em 0.8em; background: #0F4C81; color: #fff; font-size: 1.2em; text-align: center; border-radius: 4px; }
-h3 { padding-left: 8px; border-left: 3px solid #0F4C81; margin: 1.5em 8px 0.75em 0; font-size: 1.1em; color: #0F4C81; }
-h4, h5, h6 { margin: 1.5em 8px 0.5em; color: #0F4C81; font-size: 1em; }
+h1 { display: table; margin: 2em auto 1em; padding: 0 1em; border-bottom: 2px solid #009B77; font-size: 1.3em; text-align: center; color: #009B77; }
+h2 { display: table; margin: 1.5em auto 1em; padding: 0.3em 0.8em; background: #009B77; color: #fff; font-size: 1.2em; text-align: center; border-radius: 4px; }
+h3 { padding-left: 8px; border-left: 3px solid #009B77; margin: 1.5em 8px 0.75em 0; font-size: 1.1em; color: #009B77; }
+h4, h5, h6 { margin: 1.5em 8px 0.5em; color: #009B77; font-size: 1em; }
 p { margin: 1em 0; letter-spacing: 0.05em; }
-blockquote { font-style: normal; padding: 0.8em 1em; border-left: 4px solid #0F4C81; border-radius: 4px; background: #f6f8fa; margin: 1em 0; color: #576b95; }
+blockquote { font-style: normal; padding: 0.8em 1em; border-left: 4px solid #009B77; border-radius: 4px; background: #f6f8fa; margin: 1em 0; color: #576b95; }
 blockquote p { margin: 0.5em 0; }
 code { font-size: 90%; color: #d14; background: rgba(27, 31, 35, 0.05); padding: 2px 6px; border-radius: 4px; font-family: Consolas, Monaco, Andale Mono, monospace; }
 pre { background: #f6f8fa; border-radius: 8px; overflow-x: auto; margin: 1em 0; padding: 0; border: 1px solid rgba(0,0,0,0.1); }
 pre code { background: none; padding: 1em; color: inherit; border-radius: 0; display: block; }
 a { color: #576b95; text-decoration: none; }
-strong { color: #0F4C81; font-weight: bold; }
+strong { color: #009B77; font-weight: bold; }
 em { font-style: italic; }
 ul { list-style: circle; padding-left: 1.5em; margin: 1em 0; }
 ol { padding-left: 1.5em; margin: 1em 0; list-style: decimal; }
@@ -72,8 +73,8 @@ th, td { border: 1px solid #dfdfdf; padding: 0.5em 0.75em; text-align: left; }
 th { background: rgba(0,0,0,0.03); font-weight: 600; }
 img { display: block; max-width: 100%; margin: 1em auto; border-radius: 4px; }
 hr { border-style: solid; border-width: 2px 0 0; border-color: rgba(0,0,0,0.1); height: 0.4em; margin: 2em 0; }
-.markup-highlight { background-color: #0F4C81; padding: 2px 4px; border-radius: 2px; color: #fff; }
-</style>`;
+.markup-highlight { background-color: #009B77; padding: 2px 4px; border-radius: 2px; color: #fff; }
+`;
 
 function markdownToHtml(markdown) {
   marked.setOptions({
@@ -81,7 +82,8 @@ function markdownToHtml(markdown) {
     breaks: true,
   });
   const bodyHtml = marked.parse(markdown);
-  return DOOCS_CSS + '<section>' + bodyHtml + '</section>';
+  const htmlWithStyleTag = '<style>' + DOOCS_CSS + '</style><section>' + bodyHtml + '</section>';
+  return juice(htmlWithStyleTag);
 }
 
 async function uploadImage(accessToken, imagePath) {
