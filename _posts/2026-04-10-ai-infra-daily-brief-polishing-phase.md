@@ -20,7 +20,7 @@ llama.cpp 在多后端优化上持续发力：SYCL FlashAttention 新增头长 5
 
 ## 二、训练框架：Tool Calling 与参数管理
 
-TRL 过去 24 小时在 tool calling 训练支持上动作频频。新增 `supports_tool_calling` 工具[[17]](https://github.com/huggingface/trl/pull/5462)用于验证模型初始化时的 tool 支持能力，新增 GPT-OSS Tool Calling 支持[[18]](https://github.com/huggingface/trl/pull/5464)，Chat template 新增 `{% generation %}` 支持[[19]](https://github.com/huggingface/trl/pull/5470)用于训练时生成模板，并优化 Image deepcopy 减少多模态消息处理开销[[20]](https://github.com/huggingface/trl/pull/5475)。同时新增 DistillationTrainer[[21]](https://github.com/huggingface/trl/pull/5407)用于高效 on-policy 蒸馏训练，废弃 pad_token 配置参数[[22]](https://github.com/huggingface/trl/pull/5480)以清理废弃接口。
+TRL 过去 24 小时在 tool calling 训练支持上动作频频。新增 `supports_tool_calling` 工具[[17]](https://github.com/huggingface/trl/pull/5462)用于验证模型初始化时的 tool 支持能力，新增 GPT-OSS Tool Calling 支持[[18]](https://github.com/huggingface/trl/pull/5464)，Chat template 新增 `generation` block 支持[[19]](https://github.com/huggingface/trl/pull/5470)用于训练时生成模板，并优化 Image deepcopy 减少多模态消息处理开销[[20]](https://github.com/huggingface/trl/pull/5475)。同时新增 DistillationTrainer[[21]](https://github.com/huggingface/trl/pull/5407)用于高效 on-policy 蒸馏训练，废弃 pad_token 配置参数[[22]](https://github.com/huggingface/trl/pull/5480)以清理废弃接口。
 
 Megatron-LM 方面，将 async_allgather 重命名为 overlap_param_gather[[23]](https://github.com/NVIDIA/Megatron-LM/pull/4217)以更清晰地表达异步参数聚合语义，修复多项 MTP 推理问题[[24]](https://github.com/NVIDIA/Megatron-LM/pull/4191)，为 Mamba 模型启用细粒度 activation offloading[[25]](https://github.com/NVIDIA/Megatron-LM/pull/4173)，并为 quick_gelu 激活函数添加 fused grouped MLP 支持[[26]](https://github.com/NVIDIA/Megatron-LM/pull/4219)。
 

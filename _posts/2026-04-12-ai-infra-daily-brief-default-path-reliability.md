@@ -48,6 +48,8 @@ OpenClaw 另外几条更新也很有代表性。gateway 媒体发送重新通过
 
 这可能就是接下来一段时间 AI Infra 最重要的演化方向：不是谁先喊出下一个能力，而是谁能让用户在默认情况下更少踩坑。
 
+---
+
 ## 参考来源
 
 [1] [vLLM 融合 FP8 DeepGemm block quant kernel 的 zero initializer](https://github.com/vllm-project/vllm/pull/39547)
