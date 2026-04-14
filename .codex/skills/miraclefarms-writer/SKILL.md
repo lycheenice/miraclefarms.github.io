@@ -5,7 +5,7 @@ description: >
   触发条件：用户提供主题 + 参考链接，想生成博客文章；用户说"写一篇关于 X 的文章"并给出引用材料；
   用户有调研材料（PR、论文、博客）想整理成带格式的文章；任何需要输出 miraclefarms.github.io _posts/ 文章的请求——
   即使用户没有明说"写文章"，只要目标是形成有主线、有证据、可发布的 AI Infra 内容，就应触发本 skill。
-  区别于 ai-morning-report（那是每日流水线，含 Telegram 投递和去重逻辑）：本 skill 专注单篇主题写作，并在参考资料包含有效配图时筛选、抓取并插入与论点直接相关的图片。
+  区别于 ai-morning-report（那是日报调研范围与素材整理 skill）：本 skill 专注写作与改写，负责 GitHub.io 和微信公众号稿件的成稿规范，并在参考资料包含有效配图时筛选、抓取并插入与论点直接相关的图片。
 ---
 
 # MiracleFarms Writer
@@ -13,6 +13,7 @@ description: >
 给定主题 + 参考链接 -> 自动调研 -> 产出可直接发布到 miraclefarms.github.io 的 `_posts/` 文章。
 
 如果参考资料里出现论文 figure、官方博客架构图、GitHub README / PR 截图等可帮助理解正文的图片，额外读取 `references/image-handling.md`，按其中的原图优先与回退策略处理。
+如果用户要求微信公众号版本，额外读取 `references/wechat-format.md`，按其中的渠道改写与参考资料链接保留规则处理。
 
 ---
 
@@ -91,10 +92,27 @@ description: >
 
 ### 避免的句式
 
-- ❌ "不是 X，而是 Y"——可以偶用，但别在同一篇文章里出现三次以上
-- ❌ "值得注意的是……"——句子开头直接说结论
+- ❌ "不是 X，而是 Y"——同一篇文章最多出现一次，多次使用会削弱判断力度
+- ❌ "值得注意的是……"——句子开头直接说结论，不要用这个词组绕圈子
 - ❌ "综上所述，我们可以得出……"——结论段直接写结论，不要过渡公式
 - ❌ 每个 PR / 每个模块单独一段流水账，失去全文贯穿的主线
+
+### 丰富语言表达
+
+同一位作者在同一篇文章里，高频词和重复句式会让文章听起来像模板。写完检查以下几点：
+
+**高频词分散**：同一段落内避免重复相同的词，尤其是"这意味着""核心""说明""值得注意的是"等词。改用同义表达：
+- "这意味着" → "换言之""由此可见""这带来的结果是"
+- "核心" → "关键""本质上""主线是"
+- "说明" → "指向""表明""反映"
+
+**句式多样性**：
+- 判断句（"X 是 Y"）之后接叙述句（"具体而言……"）或对比句（"但 Z 出现了……"），不要连续三句以上都是相同的"X 是 Y"主系表结构
+- 过渡句不要每次都用"这"开头，换用"而""但""同时""此外"等连接词引导下一层意思
+
+**段内节奏**：每段至少有一句不是以"X 的 Y 是 Z"的形式开头，适当使用短句打破长句的沉闷感。
+
+**检查方法**：写完后大声朗读一遍，舌头打结的地方通常是表达最机械的地方，需要重写。
 
 ### 标题编号
 
@@ -111,6 +129,7 @@ description: >
 - **Brief** -> 读 `references/brief-format.md`（frontmatter 模板、引用格式、完整结构模板）
 - **Essay** -> 读 `references/essay-format.md`（frontmatter 模板、引用格式、完整结构模板）
 - **如果参考资料含有可用图片** -> 再读 `references/image-handling.md`（候选图筛选、原图抓取、失败回退、落盘命名）
+- **如果用户要求微信公众号版本** -> 再读 `references/wechat-format.md`（公众号改写规则、参考资料链接保留、输出路径）
 
 这两个文件包含所有格式细节，包括完整模板。**写作前必须先读对应文件。**
 
@@ -137,10 +156,12 @@ description: >
 
 ## 第六步：输出文件
 
-- 保存路径：`/Users/lychee/mycode/miraclefarms.github.io/_posts/YYYY-MM-DD-slug.md`
-- 文件名：日期取自 front matter 的 date 字段 + 英文 slug（小写、连字符分隔）
+- GitHub.io 默认保存路径：`/Users/lychee/mycode/miraclefarms.github.io/_posts/YYYY-MM-DD-slug.md`
+- GitHub.io 文件名：日期取自 front matter 的 date 字段 + 英文 slug（小写、连字符分隔）
   - 例：`2026-04-15-vllm-paged-attention-design.md`
   - 例：`2026-04-15-ai-infra-daily-brief-speculative-decoding.md`
+- 如果用户要求微信公众号版本，保存到：`/Users/lychee/mycode/miraclefarms.github.io/docs/wechat/YYYY-MM-DD-slug-wechat.md`
+- 如果用户同时要求两个渠道，先完成 GitHub.io 版本，再基于同一判断改写出微信公众号版本
 - **不要主动 commit 或 push**，除非用户明确要求
 
 ---
@@ -161,3 +182,5 @@ description: >
 - [ ] 如果参考资料里有高价值图片，是否已经尝试抓取并只插入最相关的 0-4 张？
 - [ ] 图片是否放在对应分析段落附近，而不是文末堆图？
 - [ ] 图片路径是否位于 `/assets/{post-slug}/`，图注是否说明“这张图说明了什么”？
+- [ ] 如果输出微信公众号版本，正文主体里是否没有 Markdown 链接或 HTML 链接，并且 URL 只出现在参考资料括号中？
+- [ ] 如果输出微信公众号版本，是否已经按 `references/wechat-format.md` 改写成适合公众号阅读的版本？
