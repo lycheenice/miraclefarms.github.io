@@ -64,7 +64,6 @@ pre { background: #f6f8fa; border-radius: 8px; overflow-x: auto; margin: 1em 0; 
 pre code { background: none; padding: 1em; color: inherit; border-radius: 0; display: block; }
 a { color: #576b95; text-decoration: none; }
 strong { color: #009B77; font-weight: bold; }
-em { font-style: italic; }
 ul { list-style: circle; padding-left: 1.5em; margin: 1em 0; }
 ol { padding-left: 1.5em; margin: 1em 0; list-style: decimal; }
 li { margin: 0.3em 0; }
@@ -73,7 +72,6 @@ th, td { border: 1px solid #dfdfdf; padding: 0.5em 0.75em; text-align: left; }
 th { background: rgba(0,0,0,0.03); font-weight: 600; }
 img { display: block; max-width: 100%; margin: 1em auto; border-radius: 4px; }
 hr { border-style: solid; border-width: 2px 0 0; border-color: rgba(0,0,0,0.1); height: 0.4em; margin: 2em 0; }
-.markup-highlight { background-color: #009B77; padding: 2px 4px; border-radius: 2px; color: #fff; }
 `;
 
 function markdownToHtml(markdown) {
@@ -170,7 +168,7 @@ async function main() {
 
   if (!appid || !appsecret) {
     log('WECHAT_APPID or WECHAT_APPSECRET not found in .env');
-    return { success: 0, failed: 0, errors: ['Missing credentials'] };
+    return { success: 0, failed: 0 };
   }
 
   if (!thumbMediaId) {
@@ -182,7 +180,7 @@ async function main() {
     accessToken = await getAccessToken(appid, appsecret);
   } catch (err) {
     log(`Failed to get access_token: ${err.message}`);
-    return { success: 0, failed: 0, errors: [err.message] };
+    return { success: 0, failed: 0 };
   }
 
   let effectiveThumbMediaId = thumbMediaId;
@@ -192,7 +190,7 @@ async function main() {
       console.error(`📤 Uploaded default thumb image, media_id: ${effectiveThumbMediaId}`);
     } catch (err) {
       log(`Failed to upload default thumb image: ${err.message}`);
-      return { success: 0, failed: 0, errors: [err.message] };
+      return { success: 0, failed: 0 };
     }
   }
 
@@ -202,7 +200,7 @@ async function main() {
     return { success: 0, failed: 0, errors: [] };
   }
 
-  const results = { success: 0, failed: 0, errors: [] };
+  const results = { success: 0, failed: 0 };
 
   for (const { filePath, content } of unpublished) {
     const fileName = path.basename(filePath);
@@ -222,7 +220,6 @@ async function main() {
     } catch (err) {
       log(`${fileName}\nReason: ${err.message}\n---`);
       results.failed++;
-      results.errors.push(`${fileName}: ${err.message}`);
     }
   }
 
