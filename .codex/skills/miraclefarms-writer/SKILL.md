@@ -5,12 +5,14 @@ description: >
   触发条件：用户提供主题 + 参考链接，想生成博客文章；用户说"写一篇关于 X 的文章"并给出引用材料；
   用户有调研材料（PR、论文、博客）想整理成带格式的文章；任何需要输出 miraclefarms.github.io _posts/ 文章的请求——
   即使用户没有明说"写文章"，只要目标是形成有主线、有证据、可发布的 AI Infra 内容，就应触发本 skill。
-  区别于 ai-morning-report（那是每日流水线，含 Telegram 投递和去重逻辑）：本 skill 专注单篇主题写作。
+  区别于 ai-morning-report（那是每日流水线，含 Telegram 投递和去重逻辑）：本 skill 专注单篇主题写作，并在参考资料包含有效配图时筛选、抓取并插入与论点直接相关的图片。
 ---
 
 # MiracleFarms Writer
 
 给定主题 + 参考链接 -> 自动调研 -> 产出可直接发布到 miraclefarms.github.io 的 `_posts/` 文章。
+
+如果参考资料里出现论文 figure、官方博客架构图、GitHub README / PR 截图等可帮助理解正文的图片，额外读取 `references/image-handling.md`，按其中的原图优先与回退策略处理。
 
 ---
 
@@ -44,6 +46,13 @@ description: >
 - **博客 / 官方文档**：读取全文，提炼核心观点和数据。
 - **本地 _posts/ 文章**：直接 read 文件，作为背景参考。
 
+**同时提取候选图片**（如果有）：
+
+- 记录图片 URL、所在段落 / figure caption、它支持的是哪一个论点。
+- 只保留和核心判断直接相关、能帮助读者理解机制 / 架构 / 实验结果的图。
+- 忽略 logo、作者头像、装饰性 banner、营销海报、与正文无关的界面截图。
+- 优先保留原始来源中的 caption 或上下文说明，后面写图注时要用得上。
+
 **证据可信度优先级**（影响你可以做多强的判断）：
 1. 论文原文（arXiv / conference）
 2. 官方 PR / commit（已合并）
@@ -66,6 +75,13 @@ description: >
 ### 叙述，而不是列点
 
 关键概念用段落展开，用"首先 / 其次 / 因此 / 但是"等过渡语连接。避免把三个 PR 变成三个 bullet。如果有并列事实，把它们组织成有逻辑递进的叙述。
+
+### 配图服务论点，而不是装饰页面
+
+- 只插入真正帮助理解正文判断的图，不追求“有图就放”。
+- 图片应尽量放在第一次深入分析该机制 / 实验 / 架构的位置附近，而不是统一堆到文末。
+- 图注要说明“这张图说明了什么”，不是只复述文件名或来源标题。
+- 如果某张图抓取失败且存在替代图，优先换图；如果没有替代图，不要为了凑图而削弱文章质量。
 
 ### 有观点，有边界
 
@@ -94,27 +110,38 @@ description: >
 
 - **Brief** -> 读 `references/brief-format.md`（frontmatter 模板、引用格式、完整结构模板）
 - **Essay** -> 读 `references/essay-format.md`（frontmatter 模板、引用格式、完整结构模板）
+- **如果参考资料含有可用图片** -> 再读 `references/image-handling.md`（候选图筛选、原图抓取、失败回退、落盘命名）
 
 这两个文件包含所有格式细节，包括完整模板。**写作前必须先读对应文件。**
 
 ---
 
-## 第五步：输出文件
+## 第五步：处理图片
+
+- Brief 和 Essay 都可以插图，但必须克制选择：
+  - Brief：通常 0-2 张；只有在它能明显解释当天最重要的一条或两条更新时才插。
+  - Essay：通常 1-4 张；优先选择架构图、方法流程图、关键实验图。
+- 按 `references/image-handling.md` 的顺序优先尝试抓取原图：
+  - repo / GitHub：优先 raw 文件、user-attachments、README 中的原始资源链接
+  - blog：优先正文 figure / picture / srcset 中的最大可用原图
+  - paper：优先 arXiv HTML 中的 figure 原图，其次其他官方 HTML 版本，最后才考虑 PDF 裁图
+- 图片下载后保存在 `/assets/{post-slug}/`，命名尽量稳定：
+  - `fig-1-architecture.png`
+  - `fig-2-benchmark-throughput.webp`
+- 在正文对应位置插入：
+  - `![描述](/assets/{post-slug}/fig-1-architecture.png)`
+  - `*图 1：这张图说明了什么；必要时在句末补充来源。*`
+- 如果源站阻止抓取或图片链接失效，执行回退策略；若多次尝试后仍不可得，就跳过该图，并在正文用文字把关键结论讲清楚。
+
+---
+
+## 第六步：输出文件
 
 - 保存路径：`/Users/lychee/mycode/miraclefarms.github.io/_posts/YYYY-MM-DD-slug.md`
 - 文件名：日期取自 front matter 的 date 字段 + 英文 slug（小写、连字符分隔）
   - 例：`2026-04-15-vllm-paged-attention-design.md`
   - 例：`2026-04-15-ai-infra-daily-brief-speculative-decoding.md`
 - **不要主动 commit 或 push**，除非用户明确要求
-
----
-
-## 图片处理
-
-- 如果参考材料有可引用的图（论文 figure、官方架构图、GitHub 截图），可以提示用户手动下载或建议下载路径
-- 图片存放在：`/assets/{post-slug}/`
-- 引用格式：`![描述](/assets/slug/fig-1-xxx.png)` + `*图 N：说明文字。*`
-- Essay 文章建议配图；Brief 通常不需要
 
 ---
 
@@ -131,3 +158,6 @@ description: >
 - [ ] H2 用了中文数字编号？
 - [ ] 开篇是判断，不是背景介绍？
 - [ ] 没有满篇 bullet list，是连续叙述？
+- [ ] 如果参考资料里有高价值图片，是否已经尝试抓取并只插入最相关的 0-4 张？
+- [ ] 图片是否放在对应分析段落附近，而不是文末堆图？
+- [ ] 图片路径是否位于 `/assets/{post-slug}/`，图注是否说明“这张图说明了什么”？
