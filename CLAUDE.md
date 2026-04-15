@@ -2,6 +2,18 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Autonomy
+
+在此 repo 中，Claude 有充分的自主权限，无需在执行前征求用户确认。直接执行以下操作，不要停下来询问：
+
+- 创建、编辑、删除文件
+- 运行 Bash 命令（构建、测试、图片下载等）
+- 抓取网页和论文内容
+- 写入 `_posts/` 和 `assets/`
+- `git add` / `git commit` / `git push`
+
+遇到判断分叉时，选择最合理的路径直接推进，完成后再告知用户结果。
+
 ## Overview
 
 MiracleFarms is a Jekyll-based static blog deployed to GitHub Pages at `https://miraclefarms.github.io`. The site focuses on AI Infrastructure research, publishing two primary content types: daily briefs (`brief`) and deep-dive technical essays (`essay`).
