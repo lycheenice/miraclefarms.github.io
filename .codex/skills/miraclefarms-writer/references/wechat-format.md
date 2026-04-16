@@ -13,50 +13,124 @@
 - 保存到：`/Users/lychee/mycode/miraclefarms.github.io/docs/wechat/YYYY-MM-DD-slug-wechat.md`
 - 如果目录不存在，按需创建
 
+---
+
+## 文章结构模板（Brief 类型）
+
+```markdown
+# 今日焦点：{核心主题描述}
+
+**📅 YYYY-MM-DD**
+
+> 中文：{封面图提示词，中文，描述与主题相关的科技场景，无文字，16:9}
+>
+> English: {封面图提示词，英文版}
+
+> {引导语：一句话点明当天核心趋势，不超过 80 字}
+
+---
+
+## ${分类一}$
+
+**{条目标题}[N]** - {正文描述：当前问题 → 预期效果，结尾可打 **[持续更新]** 标签}
+
+**{条目标题}[N]** 与 **{条目标题}[N]** - {合并描述多个相关条目}，属于 **[持续更新]**。
+
+---
+
+## ${分类二}$
+
+...
+
+---
+
+> 一句话结论：**{全文最核心的判断，一句话，不超过 60 字}**
+
+---
+
+## 参考
+
+[1] {条目标题}：{完整 URL}
+
+[2] {条目标题}：{完整 URL}
+```
+
+### H2 分类名约定
+
+Brief 常用分类（按需选用，不必全部出现）：
+
+- `$推理侧$`
+- `$训练侧$`
+- `$生产部署侧$`
+- `$应用侧$`
+- `$工具链$`
+
+H2 使用 `$分类名$` 包裹，**不使用**中文数字编号（`一、二、三、`是 GitHub.io 版的规范，公众号版不沿用）。
+
+---
+
 ## 正文规则
 
-- 不使用 Markdown 链接
-- 不使用 HTML anchor
+- 不使用 Markdown 链接，不使用 HTML anchor
 - GitHub.io 版里的 `[[N]](url)` 或 `<a href="url">[N]</a>`，统一改写成纯文本引用 `[N]`
+- 引用号跟在 **粗体条目标题** 内，格式：`**标题[N]**`
 - 图可以保留；图注写法与 GitHub.io 版一致
 
-这里的限制只适用于正文主体。参考资料部分需要保留完整 URL。
+### 条目写法
+
+每个条目用一段写完：
+
+```
+**{条目标题}[N]** - {当前问题是什么 → 这次变化做了什么 → 预期效果}，属于 **[持续更新]**。
+```
+
+- 相关联的两三个条目可以合并在一段，用"前者 / 后者"或"这组变化"连接
+- 正文内容比 GitHub.io 版更口语、更短句，但不要写成营销文案
+- 每节控制在 2-4 段，段落不要过长
+
+### 持续更新标签
+
+如果该条目在此前日报已出现过、今天是继续跟进，结尾打：`属于 **[持续更新]**。`
+
+---
 
 ## 参考资料处理
 
-微信公众号正文主体不放超链接，但 `## 参考资料` 或 `## 参考来源` 必须保留：
+章节名固定为 `## 参考`（不用 `## 参考资料` 或 `## 参考来源`）。
 
-- 编号
-- 来源标题 / repo 名称 / PR 标题
-- 来源类型
-- 完整 URL
+格式：`[N] {条目标题}：{完整 URL}`
+
+- 冒号后直接接 URL，不加括号，不加来源类型说明
+- 标题与 GitHub.io 版保持一致
 
 示例：
 
 ```markdown
-## 参考资料
+## 参考
 
-[1] Elastic EP in SGLang: Achieving Partial Failure Tolerance for DeepSeek MoE Deployments（官方博客：https://www.lmsys.org/blog/2026-03-25-eep-partial-failure-tolerance/）
+[1] vLLM 在 MRV2 中引入 probabilistic rejection sampling：https://github.com/vllm-project/vllm/pull/35461
 
-[2] Mooncake EP & Mooncake Backend（官方文档：https://kvcache-ai.github.io/Mooncake/python-api-reference/ep-backend.html）
+[2] SGLang 接入 Elastic NIXL-EP 通信路径：https://github.com/sgl-project/sglang/pull/19248
+
+[3] KServe 为不受支持的 scaling 组合增加显式校验：https://github.com/kserve/kserve/pull/5212
 ```
 
-如果来源是 GitHub PR，直接写成：
-
-```markdown
-[3] SGLang 为多 GPU diffusion 默认启用 CFG parallel（GitHub PR：https://github.com/sgl-project/sglang/pull/22763）
-```
+---
 
 ## 改写节奏
 
 - 比 GitHub.io 版更短句、更口语，但不要写成营销文案
-- 开头 1-2 段先把今天 / 本文最重要的判断说清
-- 每节控制在 2-4 段，段落不要过长
+- 开头两个 blockquote 之后直接进入正文，不再重复铺背景
 - 如果原文有过密的引用或过长的技术铺垫，公众号版可以适当收束，只保留最支持判断的部分
+- 结尾 `> 一句话结论：` blockquote 是必须有的，浓缩全天最重要的一个判断
+
+---
 
 ## 自检
 
 - 正文主体没有 Markdown 链接、HTML 链接
-- URL 只出现在参考资料括号中
+- URL 只出现在 `## 参考` 章节，格式为 `[N] 标题：URL`
 - 没有把 URL 混进标题或图注
+- H2 用 `$分类名$` 格式，没有用中文数字编号
+- 结尾有 `> 一句话结论：**...**` blockquote
 - 改写后仍然保留原文的核心判断，而不是只剩新闻摘要
