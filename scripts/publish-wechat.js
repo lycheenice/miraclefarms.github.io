@@ -66,6 +66,24 @@ function setFrontMatterField(content, key, value) {
   return `---\n${serialized}\n---\n${content}`;
 }
 
+function extractMarkdownTitle(markdown) {
+  const lines = markdown.split('\n');
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) {
+      continue;
+    }
+    if (line.startsWith('# ')) {
+      return line.slice(2).trim();
+    }
+  }
+  return '';
+}
+
+function resolveArticleTitle(frontMatter, body) {
+  return frontMatter.title || extractMarkdownTitle(body) || 'Untitled';
+}
+
 function normalizeContentForHash(content) {
   if (!content.startsWith('---\n')) {
     return content;
@@ -124,11 +142,11 @@ function hasBeenPublished(record, contentHash) {
   return record.sent.some(entry => entry.content_hash === contentHash);
 }
 
-function recordPublished(record, filePath, contentHash, frontMatter, response) {
+function recordPublished(record, filePath, contentHash, title, response) {
   const relativePath = path.relative(path.join(__dirname, '..'), filePath);
   record.sent.push({
     file: relativePath,
-    title: frontMatter.title || 'Untitled',
+    title,
     content_hash: contentHash,
     published_at: new Date().toISOString(),
     media_id: response && response.media_id ? response.media_id : null,
@@ -303,7 +321,7 @@ async function main() {
     const fileName = path.basename(filePath);
     try {
       const { frontMatter, body } = parseFrontMatter(content);
-      const title = frontMatter.title || 'Untitled';
+      const title = resolveArticleTitle(frontMatter, body);
       const author = frontMatter.author || '';
       const digest = frontMatter.intro || '';
 
@@ -311,7 +329,7 @@ async function main() {
 
       const response = await addDraft(accessToken, { title, author, digest, content: htmlContent, thumb_media_id: effectiveThumbMediaId });
       markAsPublished(filePath, content);
-      recordPublished(publishRecord, filePath, contentHash, frontMatter, response);
+      recordPublished(publishRecord, filePath, contentHash, title, response);
 
       console.error(`✅ Published: ${fileName}`);
       results.success++;
