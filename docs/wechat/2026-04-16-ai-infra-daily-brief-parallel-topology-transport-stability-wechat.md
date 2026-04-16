@@ -1,3 +1,6 @@
+---
+wechat_published: true
+---
 # 今日焦点：拓扑约束松绑与传输故障转移走向生产稳定
 
 **📅 2026-04-16**
@@ -10,7 +13,7 @@
 
 ---
 
-## $推理侧$
+## 推理侧
 
 **SGLang 移除 Pipeline Parallelism 与混合分块预填充兼容性限制[1]** - 此前 server_args.py 中有一条断言直接拒绝 PP + mixed-chunk 的组合，不是功能缺失，而是明确封死。这次在 Qwen3-32B（tp=2，pp-size=3，H800）充分验证后移除了这条限制，预期让需要同时使用流水线并行与混合分块预填充的部署场景不再需要绕路。
 
@@ -20,7 +23,7 @@
 
 ---
 
-## $传输层$
+## 传输层
 
 **Mooncake TENT 激活跨传输故障转移[5]** - 这件事的特殊之处在于代码早已存在。`resubmitTransferTask()` 有完整的 RDMA → TCP 故障转移逻辑，但整个函数此前从未被调用——是一段真正的死代码。这次 PR 把它接入 `getTransferStatus()`，同时补上最多 3 次的重试上限和 `tent_transport_failover_total` Prometheus 计数器。激活死代码，附带生产级保护。
 
@@ -28,7 +31,7 @@
 
 ---
 
-## $生态与可观测性$
+## 生态与可观测性
 
 **Ray Serve 将 SGLang 引擎提升为正式 user guide[7]** - 从 examples 目录移至 `_internal/serve/engines/sglang/`，与 vLLM 引擎并列，覆盖单节点、多节点 TP+PP、批量推理等场景。不再需要用户自己翻 examples 目录找集成方式——这是生态地位的变化，而不只是文档整理。
 
