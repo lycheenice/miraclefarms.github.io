@@ -67,8 +67,11 @@
 
 ```markdown
 ![PagedAttention 页表结构示意图](/assets/vllm-paged-attention-design/fig-1-page-table.svg)
+
 *图 1：PagedAttention 用页表把逻辑 token 块映射到非连续显存页，因此把 KV cache 扩容问题从连续分配改成了间接寻址。来源：论文原图。*
 ```
+
+**注意**：图片行和图注行之间必须有一个空行，否则 Jekyll/CommonMark 会把它们渲染在同一段落里，图注紧贴图片下方而不换行。
 
 ## 8. 写作边界
 
