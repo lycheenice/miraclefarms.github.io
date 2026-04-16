@@ -1,5 +1,6 @@
 ---
 published: true
+wechat_published: true
 ---
 # AI Infra 早报｜默认路径优化开始吞并服务面工程
 

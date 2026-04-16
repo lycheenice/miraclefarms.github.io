@@ -1,5 +1,6 @@
 ---
 published: true
+wechat_published: true
 ---
 # AI Infra 早报｜MoE 与 KV 数据面开始为真实生产负载补课
 

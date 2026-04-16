@@ -1,5 +1,6 @@
 ---
 published: true
+wechat_published: true
 ---
 # AI Infra 早报｜隔离边界开始进入推理基础设施默认设计
 
