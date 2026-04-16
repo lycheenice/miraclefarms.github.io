@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const axios = require('axios');
 const FormData = require('form-data');
 const juice = require('juice');
@@ -11,6 +12,7 @@ const dotenv = require('dotenv');
 const WECHAT_API_BASE = 'https://api.weixin.qq.com/cgi-bin';
 const LOG_FILE = path.join(__dirname, '..', 'docs', 'wechat-publish.log');
 const DEFAULT_THUMB_IMAGE = path.join(__dirname, '..', 'assets', 'icons', 'favicon.png');
+const RECORD_FILE = path.join(__dirname, 'wechat-publish-record.json');
 
 function log(message) {
   const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
@@ -32,6 +34,106 @@ function parseFrontMatter(content) {
   });
 
   return { frontMatter, body: match[2] };
+}
+
+function setFrontMatterField(content, key, value) {
+  const serialized = `${key}: ${value}`;
+
+  if (content.startsWith('---\n')) {
+    const end = content.indexOf('\n---\n', 4);
+    if (end !== -1) {
+      const frontMatterBlock = content.slice(4, end);
+      const body = content.slice(end + 5);
+      const lines = frontMatterBlock.split('\n');
+      let updated = false;
+
+      const nextLines = lines.map(line => {
+        if (line.startsWith(`${key}:`)) {
+          updated = true;
+          return serialized;
+        }
+        return line;
+      });
+
+      if (!updated) {
+        nextLines.push(serialized);
+      }
+
+      return `---\n${nextLines.join('\n')}\n---\n${body}`;
+    }
+  }
+
+  return `---\n${serialized}\n---\n${content}`;
+}
+
+function normalizeContentForHash(content) {
+  if (!content.startsWith('---\n')) {
+    return content;
+  }
+
+  const end = content.indexOf('\n---\n', 4);
+  if (end === -1) {
+    return content;
+  }
+
+  const frontMatterBlock = content.slice(4, end);
+  const body = content.slice(end + 5);
+  const normalizedFrontMatter = frontMatterBlock
+    .split('\n')
+    .filter(line => !line.startsWith('wechat_published:'))
+    .join('\n');
+
+  return `---\n${normalizedFrontMatter}\n---\n${body}`;
+}
+
+function computeContentHash(content) {
+  return crypto
+    .createHash('sha256')
+    .update(normalizeContentForHash(content), 'utf8')
+    .digest('hex');
+}
+
+function loadPublishRecord() {
+  if (!fs.existsSync(RECORD_FILE)) {
+    return { version: 1, sent: [] };
+  }
+
+  try {
+    const parsed = JSON.parse(fs.readFileSync(RECORD_FILE, 'utf8'));
+    if (!parsed || typeof parsed !== 'object') {
+      return { version: 1, sent: [] };
+    }
+    if (!Array.isArray(parsed.sent)) {
+      parsed.sent = [];
+    }
+    if (!parsed.version) {
+      parsed.version = 1;
+    }
+    return parsed;
+  } catch (err) {
+    log(`Failed to parse publish record: ${err.message}`);
+    return { version: 1, sent: [] };
+  }
+}
+
+function savePublishRecord(record) {
+  fs.writeFileSync(RECORD_FILE, JSON.stringify(record, null, 2) + '\n');
+}
+
+function hasBeenPublished(record, contentHash) {
+  return record.sent.some(entry => entry.content_hash === contentHash);
+}
+
+function recordPublished(record, filePath, contentHash, frontMatter, response) {
+  const relativePath = path.relative(path.join(__dirname, '..'), filePath);
+  record.sent.push({
+    file: relativePath,
+    title: frontMatter.title || 'Untitled',
+    content_hash: contentHash,
+    published_at: new Date().toISOString(),
+    media_id: response && response.media_id ? response.media_id : null,
+  });
+  savePublishRecord(record);
 }
 
 async function getAccessToken(appid, appsecret) {
@@ -125,19 +227,10 @@ async function addDraft(accessToken, article) {
 }
 
 function markAsPublished(filePath, content) {
-  let newContent;
-  if (content.startsWith('---')) {
-    newContent = content.replace(
-      /^---\n/,
-      '---\npublished: true\n'
-    );
-  } else {
-    newContent = '---\npublished: true\n---\n' + content;
-  }
-  fs.writeFileSync(filePath, newContent);
+  fs.writeFileSync(filePath, setFrontMatterField(content, 'wechat_published', 'true'));
 }
 
-function scanWechatDir() {
+function scanWechatDir(record) {
   const wechatDir = path.join(__dirname, '..', 'docs', 'wechat');
   if (!fs.existsSync(wechatDir)) {
     return [];
@@ -150,10 +243,13 @@ function scanWechatDir() {
     const filePath = path.join(wechatDir, file);
     const content = fs.readFileSync(filePath, 'utf-8');
     const { frontMatter } = parseFrontMatter(content);
+    const contentHash = computeContentHash(content);
 
-    if (frontMatter.published !== 'true') {
-      unpublished.push({ filePath, content });
+    if (frontMatter.wechat_published === 'true' || hasBeenPublished(record, contentHash)) {
+      return;
     }
+
+    unpublished.push({ filePath, content, contentHash });
   });
 
   return unpublished;
@@ -194,7 +290,8 @@ async function main() {
     }
   }
 
-  const unpublished = scanWechatDir();
+  const publishRecord = loadPublishRecord();
+  const unpublished = scanWechatDir(publishRecord);
   if (unpublished.length === 0) {
     console.error('No unpublished wechat articles found.');
     return { success: 0, failed: 0, errors: [] };
@@ -202,7 +299,7 @@ async function main() {
 
   const results = { success: 0, failed: 0 };
 
-  for (const { filePath, content } of unpublished) {
+  for (const { filePath, content, contentHash } of unpublished) {
     const fileName = path.basename(filePath);
     try {
       const { frontMatter, body } = parseFrontMatter(content);
@@ -212,8 +309,9 @@ async function main() {
 
       const htmlContent = markdownToHtml(body);
 
-      await addDraft(accessToken, { title, author, digest, content: htmlContent, thumb_media_id: effectiveThumbMediaId });
+      const response = await addDraft(accessToken, { title, author, digest, content: htmlContent, thumb_media_id: effectiveThumbMediaId });
       markAsPublished(filePath, content);
+      recordPublished(publishRecord, filePath, contentHash, frontMatter, response);
 
       console.error(`✅ Published: ${fileName}`);
       results.success++;
