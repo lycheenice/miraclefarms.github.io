@@ -1,3 +1,6 @@
+---
+wechat_published: true
+---
 # 今日焦点：AI Infra 开始主动下线虚假优化路径
 
 **📅 2026-04-17**
